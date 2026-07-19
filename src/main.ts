@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 import { ValidationPipe } from '@nestjs/common';
+
 import type {
   INestApplication,
 } from '@nestjs/common';
@@ -23,24 +24,46 @@ let serverPromise:
   | Promise<HttpRequestHandler>
   | null = null;
 
+/**
+ * Configure shared NestJS application settings
+ * for both local development and Vercel.
+ */
 function configureApplication(
   app: INestApplication,
 ): void {
   app.setGlobalPrefix('api');
 
+  /**
+   * FRONTEND_URLS supports multiple origins
+   * separated by commas.
+   *
+   * Example:
+   * http://localhost:3000,https://example.vercel.app
+   */
   const allowedOrigins = (
     process.env.FRONTEND_URLS ??
     process.env.FRONTEND_URL ??
-    'legacy-care-bayanihan-community-inc-omega.vercel.app'
+    [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://legacy-care-bayanihan-community-inc-three.vercel.app/',
+    ].join(',')
   )
     .split(',')
     .map((origin) =>
-      origin.trim().replace(/\/$/, ''),
+      origin
+        .trim()
+        .replace(/\/$/, ''),
     )
     .filter(Boolean);
 
   app.enableCors({
     origin: allowedOrigins,
+
+    /**
+     * Allows authorization headers and
+     * credentialed browser requests.
+     */
     credentials: true,
 
     methods: [
@@ -61,27 +84,46 @@ function configureApplication(
 
   app.useGlobalPipes(
     new ValidationPipe({
+      /**
+       * Remove request properties that are
+       * not declared in the DTO.
+       */
       whitelist: true,
+
+      /**
+       * Reject requests containing unknown
+       * properties instead of silently removing them.
+       */
       forbidNonWhitelisted: true,
+
+      /**
+       * Transform incoming request values
+       * according to their DTO types.
+       */
       transform: true,
     }),
   );
 }
 
+/**
+ * Create and configure the NestJS application.
+ */
 async function createApplication(): Promise<INestApplication> {
   const app =
-    await NestFactory.create(AppModule);
+    await NestFactory.create(
+      AppModule,
+    );
 
   configureApplication(app);
 
   return app;
 }
 
-/*
- * Creates and initializes the NestJS application
- * without opening a permanent TCP port.
+/**
+ * Initialize NestJS without opening a permanent
+ * TCP listener.
  *
- * Vercel will call the exported handler instead.
+ * Vercel invokes the exported request handler.
  */
 async function createServer(): Promise<HttpRequestHandler> {
   const app =
@@ -90,20 +132,25 @@ async function createServer(): Promise<HttpRequestHandler> {
   await app.init();
 
   return app
-  .getHttpAdapter()
-  .getInstance() as HttpRequestHandler;
+    .getHttpAdapter()
+    .getInstance() as HttpRequestHandler;
 }
 
-/*
- * Cache the initialized NestJS server so warm
- * Vercel invocations reuse the same application.
+/**
+ * Cache the initialized application so that
+ * warm Vercel invocations reuse the same server.
  */
 async function getServer(): Promise<HttpRequestHandler> {
   if (!serverPromise) {
     serverPromise =
       createServer().catch(
         (error: unknown) => {
+          /**
+           * Clear the cached promise when startup
+           * fails so another request can retry.
+           */
           serverPromise = null;
+
           throw error;
         },
       );
@@ -112,11 +159,8 @@ async function getServer(): Promise<HttpRequestHandler> {
   return serverPromise;
 }
 
-/*
+/**
  * Vercel serverless function entry point.
- *
- * Export both a named handler and a default
- * handler so Vercel can detect the function.
  */
 export async function handler(
   request: IncomingMessage,
@@ -133,11 +177,9 @@ export async function handler(
 
 export default handler;
 
-/*
- * Local development entry point.
- *
- * Vercel automatically provides VERCEL=1,
- * so this listener only runs locally.
+/**
+ * Start a normal HTTP listener during
+ * local development.
  */
 async function bootstrapLocal(): Promise<void> {
   const app =
@@ -150,7 +192,9 @@ async function bootstrapLocal(): Promise<void> {
     );
 
   const port =
-    Number.isInteger(configuredPort) &&
+    Number.isInteger(
+      configuredPort,
+    ) &&
     configuredPort > 0
       ? configuredPort
       : 3001;
@@ -160,11 +204,16 @@ async function bootstrapLocal(): Promise<void> {
     '0.0.0.0',
   );
 
-  console.log(
-    `Legacy Care backend is running at http://localhost:${port}/api`,
-  );
+ console.log(
+  `Legacy Care backend is running at http://localhost:${port}/api`,
+);
 }
 
+/**
+ * Vercel automatically provides VERCEL=1.
+ * Therefore, the local listener will not run
+ * inside a Vercel Function.
+ */
 if (process.env.VERCEL !== '1') {
   bootstrapLocal().catch(
     (error: unknown) => {
