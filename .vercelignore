@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+coverage/
+src/generated/prisma/
+*.log
+
+# Exclude other certificates but include Aiven's public CA
+certs/*
+!certs/ca.pem
