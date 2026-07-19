@@ -1,0 +1,55 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum MembershipType {
+  BASIC
+}
+
+enum MemberStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+model Member {
+  id           String @id @default(uuid()) @db.Char(36)
+  membershipId String @unique @map("membership_id") @db.VarChar(30)
+
+  firstName  String  @map("first_name") @db.VarChar(100)
+  middleName String? @map("middle_name") @db.VarChar(100)
+  lastName   String  @map("last_name") @db.VarChar(100)
+  email      String? @unique @db.VarChar(191)
+  phone      String  @db.VarChar(30)
+
+  username       String         @unique @db.VarChar(50)
+  passwordHash   String?        @map("password_hash") @db.VarChar(255)
+  membershipType MembershipType @default(BASIC) @map("membership_type")
+  status         MemberStatus   @default(PENDING_ACTIVATION)
+
+  referralCode        String    @unique @map("referral_code") @db.VarChar(20)
+  activationCodeHash  String?   @unique @map("activation_code_hash") @db.Char(64)
+  activationExpiresAt DateTime? @map("activation_expires_at") @db.DateTime(3)
+
+  sponsorId       String?  @map("sponsor_id") @db.Char(36)
+  sponsor         Member?  @relation("MemberSponsor", fields: [sponsorId], references: [id], onDelete: Restrict)
+  referredMembers Member[] @relation("MemberSponsor")
+
+  // Only the first member receives the value "ROOT".
+  // MySQL permits multiple NULL values in a unique column.
+  rootMarker String? @unique @map("root_marker") @db.VarChar(10)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([sponsorId])
+  @@index([status])
+  @@map("members")
+}

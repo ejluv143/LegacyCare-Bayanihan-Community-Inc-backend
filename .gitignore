@@ -1,0 +1,30 @@
+# Dependencies
+/node_modules/
+
+# Compiled output
+/dist/
+/build/
+/coverage/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Generated Prisma Client
+/src/generated/prisma/
+
+# Local Vercel configuration
+/.vercel/
+
+# Certificates and private keys
+/certs/
+*.key
+*.p12
+*.pfx
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
