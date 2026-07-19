@@ -46,7 +46,7 @@ function configureApplication(
     [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
-      'https://legacy-care-bayanihan-community-inc-three.vercel.app/',
+      'https://legacy-care-bayanihan-community-inc-omega.vercel.app/',
     ].join(',')
   )
     .split(',')
