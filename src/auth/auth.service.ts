@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
@@ -14,9 +15,11 @@ import {
   MembershipType,
 } from "../generated/prisma/client";
 
+import { AdminService } from "../admin/admin.service";
 import { PrismaService } from "../admin/database/prisma/prisma.service";
 
 import { LoginDto } from "./dto/login.dto";
+import { RegisterDto } from "./dto/register.dto";
 
 type FrontendMemberStatus =
   | "pending"
@@ -57,20 +60,81 @@ function mapMembershipType(
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly adminService: AdminService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
 
+  async register(dto: RegisterDto) {
+    if (
+      dto.password !==
+      dto.confirmPassword
+    ) {
+      throw new BadRequestException(
+        "Password and confirm password do not match.",
+      );
+    }
+
+    const member =
+      await this.adminService.createMember({
+        firstName:
+          dto.firstName.trim(),
+
+        middleName:
+          dto.middleName?.trim() ||
+          undefined,
+
+        lastName:
+          dto.lastName.trim(),
+
+        username:
+          dto.username
+            .trim()
+            .toLowerCase(),
+
+        email:
+          dto.email
+            ?.trim()
+            .toLowerCase() ||
+          undefined,
+
+        phone:
+          dto.phone.trim(),
+
+        membershipType:
+          dto.membershipType,
+
+        sponsorReferralCode:
+          dto.sponsorReferralCode
+            ?.trim()
+            .toUpperCase() ||
+          undefined,
+
+        password:
+          dto.password,
+      });
+
+    return {
+      success: true,
+
+      message:
+        "Registration completed successfully. You may now sign in.",
+
+      member,
+    };
+  }
+
   async login(dto: LoginDto) {
     const username =
-      dto.username.trim().toLowerCase();
+      dto.username
+        .trim()
+        .toLowerCase();
 
     /*
      * Temporary administrator account.
      *
-     * This is checked before querying the member
-     * database because the temporary administrator
-     * does not have a database record.
+     * Checked before the database query because
+     * this administrator has no member record.
      */
     const temporaryAdminEnabled =
       this.configService
@@ -78,7 +142,8 @@ export class AuthService {
           "TEMP_ADMIN_ENABLED",
         )
         ?.trim()
-        .toLowerCase() === "true";
+        .toLowerCase() ===
+      "true";
 
     const temporaryAdminUsername =
       this.configService
@@ -96,7 +161,8 @@ export class AuthService {
     if (
       temporaryAdminEnabled &&
       temporaryAdminUsername &&
-      username === temporaryAdminUsername
+      username ===
+        temporaryAdminUsername
     ) {
       if (
         !temporaryAdminPassword ||
@@ -122,8 +188,10 @@ export class AuthService {
 
       return {
         success: true,
+
         message:
           "Administrator signed in successfully.",
+
         token,
 
         user: {
@@ -132,9 +200,11 @@ export class AuthService {
           membershipId:
             "ADMIN-TEMP-001",
 
-          firstName: "Legacy Care",
+          firstName:
+            "Legacy Care",
 
-          lastName: "Administrator",
+          lastName:
+            "Administrator",
 
           username:
             temporaryAdminUsername,
@@ -160,9 +230,11 @@ export class AuthService {
 
           activated: true,
 
-          createdAt: currentDate,
+          createdAt:
+            currentDate,
 
-          updatedAt: currentDate,
+          updatedAt:
+            currentDate,
         },
       };
     }
@@ -197,7 +269,6 @@ export class AuthService {
     /*
      * Use the same response for missing users,
      * missing hashes, and incorrect passwords.
-     * This avoids revealing which usernames exist.
      */
     if (
       !member ||
@@ -208,7 +279,8 @@ export class AuthService {
       );
     }
 
-    let passwordMatches = false;
+    let passwordMatches =
+      false;
 
     try {
       passwordMatches =
@@ -217,7 +289,8 @@ export class AuthService {
           dto.password,
         );
     } catch {
-      passwordMatches = false;
+      passwordMatches =
+        false;
     }
 
     if (!passwordMatches) {
@@ -228,10 +301,8 @@ export class AuthService {
 
     /*
      * Pending members are temporarily allowed
-     * to sign in. A three-day activation deadline
-     * can be enforced here later.
+     * to sign in.
      */
-
     if (
       member.status ===
       MemberStatus.SUSPENDED
@@ -253,31 +324,41 @@ export class AuthService {
     const token =
       await this.jwtService.signAsync({
         sub: member.id,
-        username: member.username,
+        username:
+          member.username,
         role: "member",
         accountType: "member",
       });
 
     return {
       success: true,
-      message: "Signed in successfully.",
+
+      message:
+        "Signed in successfully.",
+
       token,
 
       user: {
-        id: member.id,
+        id:
+          member.id,
 
         membershipId:
           member.membershipId,
 
-        firstName: member.firstName,
+        firstName:
+          member.firstName,
 
-        lastName: member.lastName,
+        lastName:
+          member.lastName,
 
-        username: member.username,
+        username:
+          member.username,
 
-        email: member.email,
+        email:
+          member.email,
 
-        phone: member.phone,
+        phone:
+          member.phone,
 
         membershipType:
           mapMembershipType(
@@ -287,13 +368,16 @@ export class AuthService {
         referralCode:
           member.referralCode,
 
-        role: "member" as const,
+        role:
+          "member" as const,
 
-        status: mapMemberStatus(
-          member.status,
-        ),
+        status:
+          mapMemberStatus(
+            member.status,
+          ),
 
-        emailVerified: false,
+        emailVerified:
+          false,
 
         activated:
           member.status ===

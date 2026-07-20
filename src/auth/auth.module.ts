@@ -7,7 +7,7 @@ import {
 
 import { JwtModule } from "@nestjs/jwt";
 
-import { PrismaService } from "../admin/database/prisma/prisma.service";
+import { AdminModule } from "../admin/admin.module";
 
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
@@ -15,6 +15,8 @@ import { AuthService } from "./auth.service";
 @Module({
   imports: [
     ConfigModule,
+
+    AdminModule,
 
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -49,7 +51,6 @@ import { AuthService } from "./auth.service";
 
   providers: [
     AuthService,
-    PrismaService,
   ],
 
   exports: [
