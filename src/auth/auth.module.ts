@@ -1,21 +1,19 @@
-import { Module } from "@nestjs/common";
-
+import { Module } from '@nestjs/common';
 import {
   ConfigModule,
   ConfigService,
-} from "@nestjs/config";
+} from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 
-import { JwtModule } from "@nestjs/jwt";
-
-import { AdminModule } from "../admin/admin.module";
-
-import { AuthController } from "./auth.controller";
-import { AuthService } from "./auth.service";
+import { AdminModule } from '../admin/admin.module';
+import { DatabaseModule } from '../admin/database/database.module';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
 
 @Module({
   imports: [
     ConfigModule,
-
+    DatabaseModule,
     AdminModule,
 
     JwtModule.registerAsync({
@@ -26,21 +24,18 @@ import { AuthService } from "./auth.service";
         configService: ConfigService,
       ) => {
         const secret =
-          configService.get<string>(
-            "JWT_SECRET",
-          );
+          configService.get<string>('JWT_SECRET');
 
         if (!secret) {
           throw new Error(
-            "JWT_SECRET is missing from the backend environment.",
+            'JWT_SECRET is missing from the backend environment.',
           );
         }
 
         return {
           secret,
-
           signOptions: {
-            expiresIn: "1d",
+            expiresIn: '1d',
           },
         };
       },
@@ -49,9 +44,7 @@ import { AuthService } from "./auth.service";
 
   controllers: [AuthController],
 
-  providers: [
-    AuthService,
-  ],
+  providers: [AuthService],
 
   exports: [
     AuthService,
