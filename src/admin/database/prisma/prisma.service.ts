@@ -1,10 +1,6 @@
 import 'dotenv/config';
 
-import {
-  Injectable,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
@@ -16,7 +12,7 @@ import { PrismaClient } from '../../../generated/prisma/client';
 function requireEnvironmentVariable(
   name: string,
 ): string {
-  const value = process.env[name];
+  const value = process.env[name]?.trim();
 
   if (!value) {
     throw new Error(
@@ -28,13 +24,11 @@ function requireEnvironmentVariable(
 }
 
 function getDatabasePort(): number {
-  const rawPort =
-    requireEnvironmentVariable(
-      'DATABASE_PORT',
-    );
+  const rawPort = requireEnvironmentVariable(
+    'DATABASE_PORT',
+  );
 
-  const port =
-    Number.parseInt(rawPort, 10);
+  const port = Number.parseInt(rawPort, 10);
 
   if (
     !Number.isInteger(port) ||
@@ -51,22 +45,25 @@ function getDatabasePort(): number {
 
 function getDatabaseCaCertificate(): string {
   /*
-   * Production/Vercel:
-   *
-   * Read the Aiven CA certificate from a
-   * base64-encoded environment variable.
+   * Vercel production:
+   * Read the Base64-encoded Aiven CA certificate.
    */
   const base64Certificate =
-    process.env
-      .DATABASE_SSL_CA_BASE64
-      ?.trim();
+    process.env.DATABASE_SSL_CA_BASE64?.trim();
 
   if (base64Certificate) {
-    const certificate =
-      Buffer.from(
+    let certificate: string;
+
+    try {
+      certificate = Buffer.from(
         base64Certificate,
         'base64',
       ).toString('utf8');
+    } catch {
+      throw new Error(
+        'DATABASE_SSL_CA_BASE64 could not be decoded.',
+      );
+    }
 
     if (
       !certificate.includes(
@@ -86,23 +83,35 @@ function getDatabaseCaCertificate(): string {
 
   /*
    * Local development:
-   *
-   * Fall back to reading certs/ca.pem using
-   * DATABASE_SSL_CA_PATH from the local .env.
+   * Read certs/ca.pem using DATABASE_SSL_CA_PATH.
    */
-  const certificatePath =
-    resolve(
-      process.cwd(),
-      requireEnvironmentVariable(
-        'DATABASE_SSL_CA_PATH',
-      ),
-    );
+  const certificatePath = resolve(
+    process.cwd(),
+    requireEnvironmentVariable(
+      'DATABASE_SSL_CA_PATH',
+    ),
+  );
 
   try {
-    return readFileSync(
+    const certificate = readFileSync(
       certificatePath,
       'utf8',
     );
+
+    if (
+      !certificate.includes(
+        '-----BEGIN CERTIFICATE-----',
+      ) ||
+      !certificate.includes(
+        '-----END CERTIFICATE-----',
+      )
+    ) {
+      throw new Error(
+        'The certificate file is not a valid PEM certificate.',
+      );
+    }
+
+    return certificate;
   } catch (error: unknown) {
     const reason =
       error instanceof Error
@@ -116,58 +125,52 @@ function getDatabaseCaCertificate(): string {
 }
 
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements
-    OnModuleInit,
-    OnModuleDestroy
-{
+export class PrismaService extends PrismaClient {
   constructor() {
-    const adapter =
-      new PrismaMariaDb({
-        host:
-          requireEnvironmentVariable(
-            'DATABASE_HOST',
-          ),
+    const adapter = new PrismaMariaDb({
+      host: requireEnvironmentVariable(
+        'DATABASE_HOST',
+      ),
 
-        port: getDatabasePort(),
+      port: getDatabasePort(),
 
-        user:
-          requireEnvironmentVariable(
-            'DATABASE_USER',
-          ),
+      user: requireEnvironmentVariable(
+        'DATABASE_USER',
+      ),
 
-        password:
-          requireEnvironmentVariable(
-            'DATABASE_PASSWORD',
-          ),
+      password: requireEnvironmentVariable(
+        'DATABASE_PASSWORD',
+      ),
 
-        database:
-          requireEnvironmentVariable(
-            'DATABASE_NAME',
-          ),
+      database: requireEnvironmentVariable(
+        'DATABASE_NAME',
+      ),
 
-        /*
-         * Keep the pool small because Vercel
-         * can create several serverless instances.
-         */
-        connectionLimit: 5,
+      /*
+       * Keep the pool very small for Vercel.
+       * Each serverless instance creates its own pool.
+       */
+      connectionLimit: 1,
 
-        ssl: {
-          ca: getDatabaseCaCertificate(),
-        },
-      });
+      /*
+       * Allow more time for the remote Aiven connection.
+       */
+      connectTimeout: 20_000,
+      acquireTimeout: 30_000,
+
+      ssl: {
+        ca: getDatabaseCaCertificate(),
+        rejectUnauthorized: true,
+      },
+    });
 
     super({
       adapter,
+      log:
+        process.env.NODE_ENV ===
+        'development'
+          ? ['warn', 'error']
+          : ['error'],
     });
-  }
-
-  async onModuleInit(): Promise<void> {
-    await this.$connect();
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.$disconnect();
   }
 }
