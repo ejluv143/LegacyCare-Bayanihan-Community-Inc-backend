@@ -41,6 +41,7 @@ model Member {
   sponsorId       String?  @map("sponsor_id") @db.Char(36)
   sponsor         Member?  @relation("MemberSponsor", fields: [sponsorId], references: [id], onDelete: Restrict)
   referredMembers Member[] @relation("MemberSponsor")
+  beneficiaries   Beneficiary[]
 
   // Only the first member receives the value "ROOT".
   // MySQL permits multiple NULL values in a unique column.
@@ -52,4 +53,31 @@ model Member {
   @@index([sponsorId])
   @@index([status])
   @@map("members")
+}
+
+model Beneficiary {
+  // Internal database identifier.
+  id String @id @default(uuid()) @db.Char(36)
+
+  // Public sub-ID, for example: LC-9NUV24B36SP9-B01.
+  beneficiaryId String @unique @map("beneficiary_id") @db.VarChar(40)
+  sequence      Int    @map("sequence_number")
+
+  // Internal UUID of the primary member who owns this beneficiary.
+  primaryMemberId String @map("primary_member_id") @db.Char(36)
+
+  firstName    String  @map("first_name") @db.VarChar(100)
+  middleName   String? @map("middle_name") @db.VarChar(100)
+  lastName     String  @map("last_name") @db.VarChar(100)
+  relationship String  @db.VarChar(50)
+  address      String  @db.Text
+
+  primaryMember Member @relation(fields: [primaryMemberId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@unique([primaryMemberId, sequence])
+  @@index([primaryMemberId])
+  @@map("beneficiaries")
 }
