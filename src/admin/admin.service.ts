@@ -19,7 +19,7 @@ import {
   Prisma,
 } from '../generated/prisma/client';
 
-import { CreateMemberDto } from './dto/create-member.dto';
+import { CreateMemberDto } from './database/create-member.dto';
 import { PrismaService } from './database/prisma/prisma.service';
 
 const CODE_CHARACTERS =

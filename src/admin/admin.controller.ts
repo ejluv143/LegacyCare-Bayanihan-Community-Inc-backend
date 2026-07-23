@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { AdminService } from './admin.service';
-import { CreateMemberDto } from '../admin/dto/create-member.dto';
+import { CreateMemberDto } from './database/create-member.dto';
 
 @Controller('admin')
 export class AdminController {

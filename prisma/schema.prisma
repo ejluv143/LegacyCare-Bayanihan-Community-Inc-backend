@@ -10,12 +10,31 @@ datasource db {
 
 enum MembershipType {
   BASIC
+  PREMIUM
 }
 
 enum MemberStatus {
   PENDING_ACTIVATION
   ACTIVE
   SUSPENDED
+  DISABLED
+}
+
+enum GeneratedCodeCategory {
+  ACTIVATION
+  TOP_UP
+  BENEFICIARY
+}
+
+enum ActivationCodeType {
+  BASIC
+  PREMIUM
+}
+
+enum GeneratedCodeStatus {
+  AVAILABLE
+  USED
+  EXPIRED
   DISABLED
 }
 
@@ -38,10 +57,12 @@ model Member {
   activationCodeHash  String?   @unique @map("activation_code_hash") @db.Char(64)
   activationExpiresAt DateTime? @map("activation_expires_at") @db.DateTime(3)
 
-  sponsorId       String?  @map("sponsor_id") @db.Char(36)
-  sponsor         Member?  @relation("MemberSponsor", fields: [sponsorId], references: [id], onDelete: Restrict)
-  referredMembers Member[] @relation("MemberSponsor")
+  sponsorId       String?       @map("sponsor_id") @db.Char(36)
+  sponsor         Member?       @relation("MemberSponsor", fields: [sponsorId], references: [id], onDelete: Restrict)
+  referredMembers Member[]      @relation("MemberSponsor")
   beneficiaries   Beneficiary[]
+
+  redeemedGeneratedCodes GeneratedCode[] @relation("GeneratedCodeUsedByMember")
 
   // Only the first member receives the value "ROOT".
   // MySQL permits multiple NULL values in a unique column.
@@ -80,4 +101,64 @@ model Beneficiary {
   @@unique([primaryMemberId, sequence])
   @@index([primaryMemberId])
   @@map("beneficiaries")
+}
+
+model GeneratedCodeBatch {
+  id String @id @default(uuid()) @db.Char(36)
+
+  category       GeneratedCodeCategory
+  activationType ActivationCodeType?   @map("activation_type")
+  topUpAmount    Int?                  @map("top_up_amount") @db.UnsignedInt
+  quantity       Int                   @db.UnsignedInt
+
+  generatedAt          DateTime @default(now()) @map("generated_at") @db.DateTime(3)
+  generatedByAdminId   String?  @map("generated_by_admin_id") @db.VarChar(191)
+  generatedByAdminName String?  @map("generated_by_admin_name") @db.VarChar(191)
+
+  codes GeneratedCode[]
+
+  @@index([category])
+  @@index([generatedAt])
+  @@index([generatedByAdminId])
+  @@map("generated_code_batches")
+}
+
+model GeneratedCode {
+  id   String @id @default(uuid()) @db.Char(36)
+  code String @unique @db.VarChar(32)
+
+  category       GeneratedCodeCategory
+  status         GeneratedCodeStatus   @default(AVAILABLE)
+  activationType ActivationCodeType?   @map("activation_type")
+  topUpAmount    Int?                  @map("top_up_amount") @db.UnsignedInt
+
+  generatedAt          DateTime  @default(now()) @map("generated_at") @db.DateTime(3)
+  generatedByAdminId   String?   @map("generated_by_admin_id") @db.VarChar(191)
+  generatedByAdminName String?   @map("generated_by_admin_name") @db.VarChar(191)
+  expiresAt            DateTime? @map("expires_at") @db.DateTime(3)
+
+  usedAt           DateTime? @map("used_at") @db.DateTime(3)
+  usedByMemberId   String?   @map("used_by_member_id") @db.Char(36)
+  usedByMemberName String?   @map("used_by_member_name") @db.VarChar(300)
+
+  disabledAt        DateTime? @map("disabled_at") @db.DateTime(3)
+  disabledByAdminId String?   @map("disabled_by_admin_id") @db.VarChar(191)
+  disabledReason    String?   @map("disabled_reason") @db.VarChar(500)
+
+  generationBatchId String             @map("generation_batch_id") @db.Char(36)
+  generationBatch   GeneratedCodeBatch @relation(fields: [generationBatchId], references: [id], onDelete: Restrict)
+
+  usedByMember Member? @relation("GeneratedCodeUsedByMember", fields: [usedByMemberId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([category, status])
+  @@index([activationType, status])
+  @@index([topUpAmount, status])
+  @@index([generatedAt])
+  @@index([expiresAt])
+  @@index([usedByMemberId])
+  @@index([generationBatchId])
+  @@map("generated_codes")
 }

@@ -2,13 +2,15 @@ import { Transform } from 'class-transformer';
 
 import {
   IsEmail,
-  IsIn,
+  IsEnum,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
+
+import { MembershipType } from '../../generated/prisma/client';
 
 function trim(value: unknown): unknown {
   return typeof value === 'string'
@@ -28,6 +30,16 @@ function optionalTrim(
   return trimmed === ''
     ? undefined
     : trimmed;
+}
+
+function normalizeMembershipType(
+  value: unknown,
+): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  return value.trim().toUpperCase();
 }
 
 export class CreateMemberDto {
@@ -94,11 +106,7 @@ export class CreateMemberDto {
   username!: string;
 
   /**
-   * Do not apply Trim or Transform here.
-   *
-   * A password should be processed exactly as the
-   * user entered it. It only requires a minimum
-   * length and has no complexity requirement.
+   * Passwords must not be trimmed or transformed.
    */
   @IsString()
   @MinLength(8, {
@@ -111,12 +119,15 @@ export class CreateMemberDto {
   })
   password!: string;
 
+  @Transform(({ value }) =>
+    normalizeMembershipType(value),
+  )
   @IsOptional()
-  @IsIn(['BASIC'], {
+  @IsEnum(MembershipType, {
     message:
-      'membershipType must be BASIC',
+      'membershipType must be BASIC or PREMIUM',
   })
-  membershipType?: 'BASIC';
+  membershipType?: MembershipType;
 
   @Transform(({ value }) =>
     optionalTrim(value),
