@@ -1,3 +1,4 @@
+import { Transform } from "class-transformer";
 import {
   IsDateString,
   IsEmail,
@@ -7,66 +8,144 @@ import {
   Matches,
   MaxLength,
   MinLength,
-} from 'class-validator';
+} from "class-validator";
 
-import {
-  MembershipType,
-} from '../../generated/prisma/client';
+import { MembershipType } from "../../generated/prisma/client";
+
+function trim(value: unknown): unknown {
+  return typeof value === "string" ? value.trim() : value;
+}
+
+function optionalTrim(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed || undefined;
+}
+
+function lowercaseTrim(value: unknown): unknown {
+  return typeof value === "string" ? value.trim().toLowerCase() : value;
+}
+
+function uppercaseTrim(value: unknown): unknown {
+  return typeof value === "string" ? value.trim().toUpperCase() : value;
+}
 
 export class RegisterDto {
+  @Transform(({ value }) => trim(value))
   @IsString()
-  @MinLength(1)
+  @MinLength(1, {
+    message: "firstName is required",
+  })
   @MaxLength(100)
   firstName!: string;
 
+  @Transform(({ value }) => optionalTrim(value))
   @IsOptional()
   @IsString()
   @MaxLength(100)
   middleName?: string;
 
+  @Transform(({ value }) => trim(value))
   @IsString()
-  @MinLength(1)
+  @MinLength(1, {
+    message: "lastName is required",
+  })
   @MaxLength(100)
   lastName!: string;
 
+  @Transform(({ value }) => trim(value))
   @IsString()
-  @MinLength(3)
-  @MaxLength(50)
-  @Matches(/^[a-zA-Z0-9._-]+$/, {
-    message:
-      'Username may only contain letters, numbers, periods, underscores, and hyphens.',
+  @MinLength(5, {
+    message: "address must contain at least 5 characters",
   })
-  username!: string;
+  @MaxLength(500)
+  address!: string;
 
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  @IsDateString(
+    {},
+    {
+      message: "dateOfBirth must be a valid date",
+    },
+  )
+  dateOfBirth!: string;
 
+  @Transform(({ value }) => lowercaseTrim(value))
+  @IsEmail(
+    {},
+    {
+      message: "email must be a valid email address",
+    },
+  )
+  @MaxLength(191)
+  email!: string;
+
+  @Transform(({ value }) => trim(value))
   @IsString()
-  @Matches(/^\+?[0-9]{10,15}$/, {
-    message:
-      'Phone number must contain 10 to 15 digits and may begin with +.',
+  @Matches(/^\+?[0-9][0-9\s()-]{7,20}$/, {
+    message: "phone must be a valid phone number",
   })
   phone!: string;
 
-  @IsOptional()
-  @IsEnum(MembershipType)
-  membershipType: MembershipType =
-    MembershipType.BASIC;
+  @IsEnum(MembershipType, {
+    message: "membershipType must be BASIC or PREMIUM",
+  })
+  membershipType!: MembershipType;
 
-  @IsOptional()
-  @IsDateString()
-  memberSince?: string;
-
-  @IsOptional()
+  /**
+   * This code is checked against GeneratedCode.
+   * Never save this plaintext value on Member.
+   */
+  @Transform(({ value }) => uppercaseTrim(value))
   @IsString()
-  sponsorReferralCode?: string;
+  @MinLength(6)
+  @MaxLength(40)
+  @Matches(/^[A-Z0-9-]+$/, {
+    message: "activationCode may only contain letters, numbers, and hyphens",
+  })
+  activationCode!: string;
 
+  @Transform(({ value }) => uppercaseTrim(value))
   @IsString()
-  @MinLength(8)
+  @MinLength(1, {
+    message: "sponsorReferralCode is required",
+  })
+  @MaxLength(40)
+  @Matches(/^[A-Z0-9-]+$/, {
+    message:
+      "sponsorReferralCode may only contain letters, numbers, and hyphens",
+  })
+  sponsorReferralCode!: string;
+
+  @Transform(({ value }) => lowercaseTrim(value))
+  @IsString()
+  @MinLength(4, {
+    message: "username must contain at least 4 characters",
+  })
+  @MaxLength(50)
+  @Matches(/^[a-z0-9._-]+$/, {
+    message:
+      "username may only contain letters, numbers, periods, underscores, and hyphens",
+  })
+  username!: string;
+
+  /**
+   * Passwords must not be trimmed or transformed.
+   */
+  @IsString()
+  @MinLength(8, {
+    message: "password must contain at least 8 characters",
+  })
+  @MaxLength(128)
   password!: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(8, {
+    message: "confirmPassword must contain at least 8 characters",
+  })
+  @MaxLength(128)
   confirmPassword!: string;
 }

@@ -4,16 +4,12 @@ import {
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
-
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 
 import * as argon2 from "argon2";
 
-import {
-  MemberStatus,
-  MembershipType,
-} from "../generated/prisma/client";
+import { MemberStatus, MembershipType } from "../generated/prisma/client";
 
 import { AdminService } from "../admin/admin.service";
 import { PrismaService } from "../admin/database/prisma/prisma.service";
@@ -21,15 +17,11 @@ import { PrismaService } from "../admin/database/prisma/prisma.service";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 
-type FrontendMemberStatus =
-  | "pending"
-  | "active"
-  | "suspended"
-  | "inactive";
+type FrontendMemberStatus = "pending" | "active" | "suspended" | "inactive";
 
-function mapMemberStatus(
-  status: MemberStatus,
-): FrontendMemberStatus {
+type FrontendMembershipType = "basic" | "premium";
+
+function mapMemberStatus(status: MemberStatus): FrontendMemberStatus {
   switch (status) {
     case MemberStatus.ACTIVE:
       return "active";
@@ -48,8 +40,11 @@ function mapMemberStatus(
 
 function mapMembershipType(
   membershipType: MembershipType,
-): "basic" {
+): FrontendMembershipType {
   switch (membershipType) {
+    case MembershipType.PREMIUM:
+      return "premium";
+
     case MembershipType.BASIC:
     default:
       return "basic";
@@ -66,69 +61,51 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    if (
-      dto.password !==
-      dto.confirmPassword
-    ) {
+    if (dto.password !== dto.confirmPassword) {
       throw new BadRequestException(
         "Password and confirm password do not match.",
       );
     }
 
-    const member =
-      await this.adminService.createMember({
-        firstName:
-          dto.firstName.trim(),
+    const member = await this.adminService.createMember({
+      firstName: dto.firstName.trim(),
 
-        middleName:
-          dto.middleName?.trim() ||
-          undefined,
+      middleName: dto.middleName?.trim() || undefined,
 
-        lastName:
-          dto.lastName.trim(),
+      lastName: dto.lastName.trim(),
 
-        username:
-          dto.username
-            .trim()
-            .toLowerCase(),
+      address: dto.address.trim(),
 
-        email:
-          dto.email
-            ?.trim()
-            .toLowerCase() ||
-          undefined,
+      dateOfBirth: dto.dateOfBirth,
 
-        phone:
-          dto.phone.trim(),
+      email: dto.email.trim().toLowerCase(),
 
-        membershipType:
-          dto.membershipType,
+      phone: dto.phone.replace(/[\s()-]/g, ""),
 
-        sponsorReferralCode:
-          dto.sponsorReferralCode
-            ?.trim()
-            .toUpperCase() ||
-          undefined,
+      username: dto.username.trim().toLowerCase(),
 
-        password:
-          dto.password,
-      });
+      membershipType: dto.membershipType,
+
+      activationCode: dto.activationCode.trim().toUpperCase(),
+
+      sponsorReferralCode: dto.sponsorReferralCode.trim().toUpperCase(),
+
+      password: dto.password,
+
+      confirmPassword: dto.confirmPassword,
+    });
 
     return {
       success: true,
 
-      message:
-        "Registration completed successfully. You may now sign in.",
+      message: "Registration completed successfully. You may now sign in.",
 
       member,
     };
   }
 
   async login(dto: LoginDto) {
-    const username =
-      dto.username
-        .trim()
-        .toLowerCase();
+    const username = dto.username.trim().toLowerCase();
 
     /*
      * Temporary administrator account.
@@ -138,87 +115,64 @@ export class AuthService {
      */
     const temporaryAdminEnabled =
       this.configService
-        .get<string>(
-          "TEMP_ADMIN_ENABLED",
-        )
+        .get<string>("TEMP_ADMIN_ENABLED")
         ?.trim()
-        .toLowerCase() ===
-      "true";
+        .toLowerCase() === "true";
 
-    const temporaryAdminUsername =
-      this.configService
-        .get<string>(
-          "TEMP_ADMIN_USERNAME",
-        )
-        ?.trim()
-        .toLowerCase();
+    const temporaryAdminUsername = this.configService
+      .get<string>("TEMP_ADMIN_USERNAME")
+      ?.trim()
+      .toLowerCase();
 
-    const temporaryAdminPassword =
-      this.configService.get<string>(
-        "TEMP_ADMIN_PASSWORD",
-      );
+    const temporaryAdminPassword = this.configService.get<string>(
+      "TEMP_ADMIN_PASSWORD",
+    );
 
     if (
       temporaryAdminEnabled &&
       temporaryAdminUsername &&
-      username ===
-        temporaryAdminUsername
+      username === temporaryAdminUsername
     ) {
-      if (
-        !temporaryAdminPassword ||
-        dto.password !==
-          temporaryAdminPassword
-      ) {
+      if (!temporaryAdminPassword || dto.password !== temporaryAdminPassword) {
         throw new UnauthorizedException(
           "The username or password is incorrect.",
         );
       }
 
-      const token =
-        await this.jwtService.signAsync({
-          sub: "temporary-admin",
-          username:
-            temporaryAdminUsername,
-          role: "admin",
-          accountType: "admin",
-        });
+      const token = await this.jwtService.signAsync({
+        sub: "temporary-admin",
+        username: temporaryAdminUsername,
+        role: "admin",
+        accountType: "admin",
+      });
 
-      const currentDate =
-        new Date().toISOString();
+      const currentDate = new Date().toISOString();
 
       return {
         success: true,
 
-        message:
-          "Administrator signed in successfully.",
+        message: "Administrator signed in successfully.",
 
         token,
 
         user: {
           id: "temporary-admin",
 
-          membershipId:
-            "ADMIN-TEMP-001",
+          membershipId: "ADMIN-TEMP-001",
 
-          firstName:
-            "Legacy Care",
+          firstName: "Legacy Care",
 
-          lastName:
-            "Administrator",
+          lastName: "Administrator",
 
-          username:
-            temporaryAdminUsername,
+          username: temporaryAdminUsername,
 
           email:
-            this.configService.get<string>(
-              "TEMP_ADMIN_EMAIL",
-            ) ??
+            this.configService.get<string>("TEMP_ADMIN_EMAIL") ??
             "admin@legacycare.local",
 
           phone: null,
 
-          membershipType:
-            "basic" as const,
+          membershipType: "basic" as const,
 
           referralCode: null,
 
@@ -230,11 +184,9 @@ export class AuthService {
 
           activated: true,
 
-          createdAt:
-            currentDate,
+          createdAt: currentDate,
 
-          updatedAt:
-            currentDate,
+          updatedAt: currentDate,
         },
       };
     }
@@ -242,152 +194,111 @@ export class AuthService {
     /*
      * Normal member login.
      */
-    const member =
-      await this.prisma.member.findUnique({
-        where: {
-          username,
-        },
+    const member = await this.prisma.member.findUnique({
+      where: {
+        username,
+      },
 
-        select: {
-          id: true,
-          membershipId: true,
-          firstName: true,
-          middleName: true,
-          lastName: true,
-          username: true,
-          email: true,
-          phone: true,
-          passwordHash: true,
-          membershipType: true,
-          status: true,
-          referralCode: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
+      select: {
+        id: true,
+        membershipId: true,
+        firstName: true,
+        middleName: true,
+        lastName: true,
+        username: true,
+        email: true,
+        phone: true,
+        passwordHash: true,
+        membershipType: true,
+        status: true,
+        referralCode: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     /*
      * Use the same response for missing users,
      * missing hashes, and incorrect passwords.
      */
-    if (
-      !member ||
-      !member.passwordHash
-    ) {
-      throw new UnauthorizedException(
-        "The username or password is incorrect.",
-      );
+    if (!member || !member.passwordHash) {
+      throw new UnauthorizedException("The username or password is incorrect.");
     }
 
-    let passwordMatches =
-      false;
+    let passwordMatches = false;
 
     try {
-      passwordMatches =
-        await argon2.verify(
-          member.passwordHash,
-          dto.password,
-        );
+      passwordMatches = await argon2.verify(member.passwordHash, dto.password);
     } catch {
-      passwordMatches =
-        false;
+      passwordMatches = false;
     }
 
     if (!passwordMatches) {
-      throw new UnauthorizedException(
-        "The username or password is incorrect.",
-      );
+      throw new UnauthorizedException("The username or password is incorrect.");
     }
 
     /*
      * Pending members are temporarily allowed
      * to sign in.
      */
-    if (
-      member.status ===
-      MemberStatus.SUSPENDED
-    ) {
+    if (member.status === MemberStatus.SUSPENDED) {
       throw new ForbiddenException(
         "Your account is suspended. Please contact Legacy Care support.",
       );
     }
 
-    if (
-      member.status ===
-      MemberStatus.DISABLED
-    ) {
+    if (member.status === MemberStatus.DISABLED) {
       throw new ForbiddenException(
         "Your account is disabled. Please contact Legacy Care support.",
       );
     }
 
-    const token =
-      await this.jwtService.signAsync({
-        sub: member.id,
-        username:
-          member.username,
-        role: "member",
-        accountType: "member",
-      });
+    const token = await this.jwtService.signAsync({
+      sub: member.id,
+      username: member.username,
+      role: "member",
+      accountType: "member",
+    });
 
     return {
       success: true,
 
-      message:
-        "Signed in successfully.",
+      message: "Signed in successfully.",
 
       token,
 
       user: {
-        id:
-          member.id,
+        id: member.id,
 
-        membershipId:
-          member.membershipId,
+        membershipId: member.membershipId,
 
-        firstName:
-          member.firstName,
+        firstName: member.firstName,
 
-        lastName:
-          member.lastName,
+        middleName: member.middleName,
 
-        username:
-          member.username,
+        lastName: member.lastName,
 
-        email:
-          member.email,
+        username: member.username,
 
-        phone:
-          member.phone,
+        email: member.email,
 
-        membershipType:
-          mapMembershipType(
-            member.membershipType,
-          ),
+        phone: member.phone,
 
-        referralCode:
-          member.referralCode,
+        membershipType: mapMembershipType(member.membershipType),
 
-        role:
-          "member" as const,
+        referralCode: member.referralCode,
 
-        status:
-          mapMemberStatus(
-            member.status,
-          ),
+        role: "member" as const,
 
-        emailVerified:
-          false,
+        status: mapMemberStatus(member.status),
 
-        activated:
-          member.status ===
-          MemberStatus.ACTIVE,
+        emailVerified: false,
 
-        createdAt:
-          member.createdAt.toISOString(),
+        activated: member.status === MemberStatus.ACTIVE,
 
-        updatedAt:
-          member.updatedAt.toISOString(),
+        createdAt: member.createdAt.toISOString(),
+
+        updatedAt: member.updatedAt.toISOString(),
       },
     };
   }
