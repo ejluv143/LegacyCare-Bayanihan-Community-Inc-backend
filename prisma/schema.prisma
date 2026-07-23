@@ -8,6 +8,16 @@ datasource db {
   provider = "mysql"
 }
 
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Members
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
 enum MembershipType {
   BASIC
   PREMIUM
@@ -19,6 +29,16 @@ enum MemberStatus {
   SUSPENDED
   DISABLED
 }
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Generated Codes
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 
 enum GeneratedCodeCategory {
   ACTIVATION
@@ -37,6 +57,71 @@ enum GeneratedCodeStatus {
   EXPIRED
   DISABLED
 }
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Satellites
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+enum SatelliteStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+  CLOSED
+}
+
+enum SatelliteBusinessType {
+  FRANCHISE
+  COMPANY_OWNED
+  AFFILIATE
+}
+
+enum SatelliteLevel {
+  REGIONAL
+  PROVINCIAL
+  CITY
+  BARANGAY
+}
+
+enum SatelliteGender {
+  MALE
+  FEMALE
+  PREFER_NOT_TO_SAY
+}
+
+enum SatelliteCivilStatus {
+  SINGLE
+  MARRIED
+  WIDOWED
+  SEPARATED
+}
+
+enum SatelliteAccountRole {
+  SATELLITE_ADMIN
+  MANAGER
+}
+
+enum SatelliteAccountStatus {
+  ACTIVE
+  DISABLED
+  LOCKED
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Member
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 
 model Member {
   id           String @id @default(uuid()) @db.Char(36)
@@ -57,10 +142,14 @@ model Member {
   activationCodeHash  String?   @unique @map("activation_code_hash") @db.Char(64)
   activationExpiresAt DateTime? @map("activation_expires_at") @db.DateTime(3)
 
-  sponsorId       String?       @map("sponsor_id") @db.Char(36)
-  sponsor         Member?       @relation("MemberSponsor", fields: [sponsorId], references: [id], onDelete: Restrict)
-  referredMembers Member[]      @relation("MemberSponsor")
-  beneficiaries   Beneficiary[]
+  sponsorId       String?  @map("sponsor_id") @db.Char(36)
+  sponsor         Member?  @relation("MemberSponsor", fields: [sponsorId], references: [id], onDelete: Restrict)
+  referredMembers Member[] @relation("MemberSponsor")
+
+  satelliteId String?    @map("satellite_id") @db.Char(36)
+  satellite   Satellite? @relation(fields: [satelliteId], references: [id], onDelete: SetNull)
+
+  beneficiaries Beneficiary[]
 
   redeemedGeneratedCodes GeneratedCode[] @relation("GeneratedCodeUsedByMember")
 
@@ -72,19 +161,28 @@ model Member {
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
   @@index([sponsorId])
+  @@index([satelliteId])
   @@index([status])
+  @@index([membershipType])
   @@map("members")
 }
 
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Beneficiary
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
 model Beneficiary {
-  // Internal database identifier.
   id String @id @default(uuid()) @db.Char(36)
 
-  // Public sub-ID, for example: LC-9NUV24B36SP9-B01.
   beneficiaryId String @unique @map("beneficiary_id") @db.VarChar(40)
   sequence      Int    @map("sequence_number")
 
-  // Internal UUID of the primary member who owns this beneficiary.
   primaryMemberId String @map("primary_member_id") @db.Char(36)
 
   firstName    String  @map("first_name") @db.VarChar(100)
@@ -102,6 +200,16 @@ model Beneficiary {
   @@index([primaryMemberId])
   @@map("beneficiaries")
 }
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Generated Code Batch
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 
 model GeneratedCodeBatch {
   id String @id @default(uuid()) @db.Char(36)
@@ -122,6 +230,16 @@ model GeneratedCodeBatch {
   @@index([generatedByAdminId])
   @@map("generated_code_batches")
 }
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Generated Code
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 
 model GeneratedCode {
   id   String @id @default(uuid()) @db.Char(36)
@@ -161,4 +279,236 @@ model GeneratedCode {
   @@index([usedByMemberId])
   @@index([generationBatchId])
   @@map("generated_codes")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Satellite
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model Satellite {
+  id String @id @default(uuid()) @db.Char(36)
+
+  satelliteCode String @unique @map("satellite_code") @db.VarChar(30)
+  satelliteName String @map("satellite_name") @db.VarChar(191)
+
+  status       SatelliteStatus       @default(PENDING)
+  businessType SatelliteBusinessType @map("business_type")
+  level        SatelliteLevel        @map("satellite_level")
+
+  region        String  @db.VarChar(150)
+  province      String  @db.VarChar(150)
+  city          String  @db.VarChar(150)
+  barangay      String  @db.VarChar(150)
+  streetAddress String  @map("street_address") @db.Text
+  zipCode       String? @map("zip_code") @db.VarChar(20)
+
+  openingDate DateTime? @map("opening_date") @db.Date
+
+  coverageArea   String @map("coverage_area") @db.Text
+  operatingHours String @map("operating_hours") @db.VarChar(191)
+
+  maximumMembers Int @default(1000) @map("maximum_members") @db.UnsignedInt
+
+  commissionPercentage Decimal @default(10.00) @map("commission_percentage") @db.Decimal(5, 2)
+
+  remarks String? @db.Text
+
+  manager       SatelliteManager?
+  payoutAccount SatellitePayoutAccount?
+  account       SatelliteAccount?
+  permissions   SatellitePermissions?
+
+  members       Member[]
+  statusHistory SatelliteStatusHistory[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([status])
+  @@index([businessType])
+  @@index([level])
+  @@index([region])
+  @@index([province])
+  @@index([city])
+  @@index([createdAt])
+  @@map("satellites")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Satellite Manager
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model SatelliteManager {
+  id String @id @default(uuid()) @db.Char(36)
+
+  satelliteId String    @unique @map("satellite_id") @db.Char(36)
+  satellite   Satellite @relation(fields: [satelliteId], references: [id], onDelete: Cascade)
+
+  firstName  String  @map("first_name") @db.VarChar(100)
+  middleName String? @map("middle_name") @db.VarChar(100)
+  lastName   String  @map("last_name") @db.VarChar(100)
+  suffix     String? @db.VarChar(20)
+
+  birthDate DateTime? @map("birth_date") @db.Date
+
+  gender      SatelliteGender?
+  civilStatus SatelliteCivilStatus @map("civil_status")
+
+  nationality String @default("Filipino") @db.VarChar(100)
+
+  contactNumber          String  @unique @map("contact_number") @db.VarChar(30)
+  alternateContactNumber String? @map("alternate_contact_number") @db.VarChar(30)
+  email                  String  @unique @db.VarChar(191)
+
+  validIdType String? @map("valid_id_type") @db.VarChar(100)
+
+  validIdNumber String? @unique @map("valid_id_number") @db.VarChar(191)
+
+  taxIdentificationNumber String? @unique @map("tax_identification_number") @db.VarChar(50)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([satelliteId])
+  @@index([lastName, firstName])
+  @@map("satellite_managers")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Satellite Payout Account
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model SatellitePayoutAccount {
+  id String @id @default(uuid()) @db.Char(36)
+
+  satelliteId String    @unique @map("satellite_id") @db.Char(36)
+  satellite   Satellite @relation(fields: [satelliteId], references: [id], onDelete: Cascade)
+
+  gcashNumber String? @map("gcash_number") @db.VarChar(30)
+
+  bankName          String? @map("bank_name") @db.VarChar(150)
+  bankAccountName   String? @map("bank_account_name") @db.VarChar(191)
+  bankAccountNumber String? @map("bank_account_number") @db.VarChar(100)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([satelliteId])
+  @@map("satellite_payout_accounts")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Satellite Administrator
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model SatelliteAccount {
+  id String @id @default(uuid()) @db.Char(36)
+
+  satelliteId String    @unique @map("satellite_id") @db.Char(36)
+  satellite   Satellite @relation(fields: [satelliteId], references: [id], onDelete: Cascade)
+
+  username     String @unique @db.VarChar(50)
+  passwordHash String @map("password_hash") @db.VarChar(255)
+
+  role   SatelliteAccountRole   @default(SATELLITE_ADMIN)
+  status SatelliteAccountStatus @default(DISABLED)
+
+  mustChangePassword Boolean @default(true) @map("must_change_password")
+
+  lastLoginAt       DateTime? @map("last_login_at") @db.DateTime(3)
+  passwordChangedAt DateTime? @map("password_changed_at") @db.DateTime(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([satelliteId])
+  @@index([status])
+  @@index([role])
+  @@map("satellite_accounts")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Satellite Permissions
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model SatellitePermissions {
+  id String @id @default(uuid()) @db.Char(36)
+
+  satelliteId String    @unique @map("satellite_id") @db.Char(36)
+  satellite   Satellite @relation(fields: [satelliteId], references: [id], onDelete: Cascade)
+
+  canRegisterMembers     Boolean @default(true) @map("can_register_members")
+  canActivateMembers     Boolean @default(false) @map("can_activate_members")
+  canProcessClaims       Boolean @default(false) @map("can_process_claims")
+  canViewGenealogy       Boolean @default(true) @map("can_view_genealogy")
+  canManageBeneficiaries Boolean @default(true) @map("can_manage_beneficiaries")
+  canViewTransactions    Boolean @default(true) @map("can_view_transactions")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([satelliteId])
+  @@map("satellite_permissions")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Satellite Status History
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model SatelliteStatusHistory {
+  id String @id @default(uuid()) @db.Char(36)
+
+  satelliteId String    @map("satellite_id") @db.Char(36)
+  satellite   Satellite @relation(fields: [satelliteId], references: [id], onDelete: Cascade)
+
+  previousStatus SatelliteStatus @map("previous_status")
+  newStatus      SatelliteStatus @map("new_status")
+
+  reason String? @db.VarChar(500)
+
+  changedByAdminId   String? @map("changed_by_admin_id") @db.VarChar(191)
+  changedByAdminName String? @map("changed_by_admin_name") @db.VarChar(191)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([satelliteId])
+  @@index([newStatus])
+  @@index([createdAt])
+  @@map("satellite_status_history")
 }
