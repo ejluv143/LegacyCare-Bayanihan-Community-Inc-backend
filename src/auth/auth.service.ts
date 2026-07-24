@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
@@ -14,11 +13,11 @@ import {
   MembershipType,
 } from "../generated/prisma/client";
 
-import { AdminService } from "../admin/admin.service";
 import { PrismaService } from "../admin/database/prisma/prisma.service";
+import { MembersService } from "../members/members.service";
 
 import { LoginDto } from "./dto/login.dto";
-import { RegisterDto } from "./dto/register.dto";
+import { RegisterMemberDto } from "./dto/register-member.dto";
 
 type FrontendMemberStatus =
   | "pending"
@@ -66,68 +65,46 @@ function mapMembershipType(
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly adminService: AdminService,
+    private readonly membersService: MembersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    if (dto.password !== dto.confirmPassword) {
-      throw new BadRequestException(
-        "Password and confirm password do not match.",
-      );
-    }
-
-    const sponsorReferralCode =
-      dto.sponsorReferralCode
-        ?.trim()
-        .toUpperCase() || undefined;
-
+  async register(
+    dto: RegisterMemberDto,
+  ) {
     const member =
-      await this.adminService.createMember({
-        firstName: dto.firstName.trim(),
+      await this.membersService.createMember({
+        firstName: dto.firstName,
 
         middleName:
-          dto.middleName?.trim() ||
-          undefined,
+          dto.middleName,
 
-        lastName: dto.lastName.trim(),
+        lastName: dto.lastName,
 
-        address: dto.address.trim(),
+        address: dto.address,
 
-        dateOfBirth: dto.dateOfBirth,
+        dateOfBirth:
+          dto.dateOfBirth,
 
-        email: dto.email
-          .trim()
-          .toLowerCase(),
+        email: dto.email,
 
-        phone: dto.phone.replace(
-          /[\s()-]/g,
-          "",
-        ),
-
-        username: dto.username
-          .trim()
-          .toLowerCase(),
+        phone: dto.phone,
 
         membershipType:
           dto.membershipType,
 
         activationCode:
-          dto.activationCode
-            .trim()
-            .toUpperCase(),
+          dto.activationCode,
 
         /*
-         * Public registration:
-         * May be undefined when no referral code
-         * is supplied.
-         *
-         * Genealogy registration:
-         * Contains the automatically populated
-         * read-only sponsor referral code.
+         * Public registration requires the user
+         * to enter the sponsor referral code.
          */
-        sponsorReferralCode,
+        sponsorReferralCode:
+          dto.referralCode,
+
+        username: dto.username,
 
         password: dto.password,
 
@@ -141,10 +118,6 @@ export class AuthService {
       message:
         "Registration completed successfully. You may now sign in.",
 
-      /*
-       * The frontend RegisterResponse expects
-       * the property to be named user.
-       */
       user: member,
     };
   }
@@ -157,18 +130,23 @@ export class AuthService {
     /*
      * Temporary administrator account.
      *
-     * Checked before the database query because
-     * this administrator has no member record.
+     * This account is checked before querying
+     * the members table because it does not have
+     * a member database record.
      */
     const temporaryAdminEnabled =
       this.configService
-        .get<string>("TEMP_ADMIN_ENABLED")
+        .get<string>(
+          "TEMP_ADMIN_ENABLED",
+        )
         ?.trim()
         .toLowerCase() === "true";
 
     const temporaryAdminUsername =
       this.configService
-        .get<string>("TEMP_ADMIN_USERNAME")
+        .get<string>(
+          "TEMP_ADMIN_USERNAME",
+        )
         ?.trim()
         .toLowerCase();
 
@@ -217,7 +195,10 @@ export class AuthService {
           membershipId:
             "ADMIN-TEMP-001",
 
-          firstName: "Legacy Care",
+          firstName:
+            "Legacy Care",
+
+          middleName: null,
 
           lastName:
             "Administrator",
@@ -265,24 +246,31 @@ export class AuthService {
         select: {
           id: true,
           membershipId: true,
+
           firstName: true,
           middleName: true,
           lastName: true,
+
           username: true,
           email: true,
           phone: true,
+
           passwordHash: true,
+
           membershipType: true,
           status: true,
+
           referralCode: true,
+
           createdAt: true,
           updatedAt: true,
         },
       });
 
     /*
-     * Use the same response for missing users,
-     * missing hashes, and incorrect passwords.
+     * Use the same response for an unknown
+     * username, missing password hash, and an
+     * incorrect password.
      */
     if (
       !member ||
@@ -312,8 +300,8 @@ export class AuthService {
     }
 
     /*
-     * Pending members are temporarily allowed
-     * to sign in.
+     * Pending activation members are currently
+     * allowed to sign in.
      */
     if (
       member.status ===
@@ -367,9 +355,11 @@ export class AuthService {
         username:
           member.username,
 
-        email: member.email,
+        email:
+          member.email,
 
-        phone: member.phone,
+        phone:
+          member.phone,
 
         membershipType:
           mapMembershipType(

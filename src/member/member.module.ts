@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 
 import { DatabaseModule } from "../admin/database/database.module";
 import { AuthModule } from "../auth/auth.module";
+import { MembersModule } from "../members/members.module";
 
 import { MemberController } from "./member.controller";
 import { MemberDashboardService } from "./member-dashboard.service";
@@ -10,6 +11,7 @@ import { MemberDashboardService } from "./member-dashboard.service";
   imports: [
     DatabaseModule,
     AuthModule,
+    MembersModule,
   ],
 
   controllers: [

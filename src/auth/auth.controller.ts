@@ -8,7 +8,7 @@ import {
 
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterMemberDto } from './dto/register-member.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -35,7 +35,7 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   register(
-    @Body() registerDto: RegisterDto,
+    @Body() registerDto: RegisterMemberDto,
   ) {
     return this.authService.register(
       registerDto,

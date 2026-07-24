@@ -10,7 +10,7 @@ import {
 import type { Request } from "express";
 
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { CreateGenealogyMemberDto } from "../../src/member/dto/create-genealogy-member.dto";
+import { CreateGenealogyMemberDto } from "./dto/create-genealogy-member.dto";
 import { MemberDashboardService } from "./member-dashboard.service";
 
 interface AuthenticatedRequest extends Request {

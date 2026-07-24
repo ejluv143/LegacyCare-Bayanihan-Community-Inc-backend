@@ -6,8 +6,8 @@ import {
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 
-import { AdminModule } from "../admin/admin.module";
 import { DatabaseModule } from "../admin/database/database.module";
+import { MembersModule } from "../members/members.module";
 
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
@@ -20,7 +20,7 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
 
     DatabaseModule,
 
-    AdminModule,
+    MembersModule,
 
     PassportModule.register({
       defaultStrategy: "jwt",

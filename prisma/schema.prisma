@@ -130,8 +130,12 @@ model Member {
   firstName  String  @map("first_name") @db.VarChar(100)
   middleName String? @map("middle_name") @db.VarChar(100)
   lastName   String  @map("last_name") @db.VarChar(100)
-  email      String? @unique @db.VarChar(191)
-  phone      String  @db.VarChar(30)
+
+  address     String?   @db.Text
+dateOfBirth DateTime? @map("date_of_birth") @db.Date
+
+  email String? @unique @db.VarChar(191)
+  phone String  @db.VarChar(30)
 
   username       String         @unique @db.VarChar(50)
   passwordHash   String?        @map("password_hash") @db.VarChar(255)
@@ -153,6 +157,9 @@ model Member {
 
   redeemedGeneratedCodes GeneratedCode[] @relation("GeneratedCodeUsedByMember")
 
+ memberSince DateTime? @map("member_since") @db.Date
+  activatedAt DateTime? @map("activated_at") @db.DateTime(3)
+
   // Only the first member receives the value "ROOT".
   // MySQL permits multiple NULL values in a unique column.
   rootMarker String? @unique @map("root_marker") @db.VarChar(10)
@@ -164,6 +171,8 @@ model Member {
   @@index([satelliteId])
   @@index([status])
   @@index([membershipType])
+  @@index([memberSince])
+  @@index([createdAt])
   @@map("members")
 }
 

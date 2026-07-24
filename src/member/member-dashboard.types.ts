@@ -8,6 +8,10 @@ export type FrontendMembershipType =
   | "basic"
   | "premium";
 
+export type GenealogyPlacement =
+  | "LEFT"
+  | "RIGHT";
+
 export interface GenealogyMemberDto {
   id: string;
 
@@ -52,11 +56,11 @@ export interface GenealogyPlacementRulesDto {
 
   remainingLeftSlots: number;
 
-  nextPlacement: "LEFT" | "RIGHT";
+  nextPlacement: GenealogyPlacement;
 }
 
 export interface GenealogyResponseDto {
-  success: boolean;
+  success: true;
 
   root: GenealogyMemberDto;
 

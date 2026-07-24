@@ -9,8 +9,8 @@ import {
   MembershipType,
 } from "../generated/prisma/client";
 
-import { AdminService } from "../admin/admin.service";
 import { PrismaService } from "../admin/database/prisma/prisma.service";
+import { MembersService } from "../members/members.service";
 
 import type { CreateGenealogyMemberDto } from "./dto/create-genealogy-member.dto";
 
@@ -39,6 +39,11 @@ interface GenealogyMemberRecord {
   status: MemberStatus;
 
   referralCode: string;
+
+  /*
+   * Prisma schema field that identifies
+   * the member's sponsor.
+   */
   sponsorId: string | null;
 
   createdAt: Date;
@@ -127,12 +132,16 @@ function mapGenealogyMember(
       member.membershipType,
     ),
 
-    status: mapMemberStatus(member.status),
+    status: mapMemberStatus(
+      member.status,
+    ),
 
     referralCode: member.referralCode,
+
     sponsorId: member.sponsorId,
 
-    createdAt: member.createdAt.toISOString(),
+    createdAt:
+      member.createdAt.toISOString(),
   };
 }
 
@@ -140,7 +149,7 @@ function mapGenealogyMember(
 export class MemberDashboardService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly adminService: AdminService,
+    private readonly membersService: MembersService,
   ) {}
 
   async getMemberTotals(): Promise<MemberDashboardTotals> {
@@ -155,8 +164,10 @@ export class MemberDashboardService {
     return {
       memberCount,
       beneficiaryCount,
+
       totalMembers:
-        memberCount + beneficiaryCount,
+        memberCount +
+        beneficiaryCount,
     };
   }
 
@@ -172,6 +183,7 @@ export class MemberDashboardService {
 
         select: {
           id: true,
+          membershipId: true,
           referralCode: true,
           status: true,
         },
@@ -183,12 +195,19 @@ export class MemberDashboardService {
       );
     }
 
-    if (sponsor.status !== MemberStatus.ACTIVE) {
+    if (
+      sponsor.status !==
+      MemberStatus.ACTIVE
+    ) {
       throw new BadRequestException(
         "Your account must be active before you can add a member.",
       );
     }
 
+    /*
+     * Count only the direct referrals of the
+     * authenticated sponsor.
+     */
     const directReferralCount =
       await this.prisma.member.count({
         where: {
@@ -196,47 +215,63 @@ export class MemberDashboardService {
         },
       });
 
+    /*
+     * Legacy Care placement rule:
+     *
+     * Direct members 1–3 go to the LEFT.
+     * Direct member 4 onward goes to the RIGHT.
+     */
     const calculatedPlacement:
-      "LEFT" | "RIGHT" =
-        directReferralCount < DIRECT_LEFT_LIMIT
-          ? "LEFT"
-          : "RIGHT";
+      | "LEFT"
+      | "RIGHT" =
+      directReferralCount <
+      DIRECT_LEFT_LIMIT
+        ? "LEFT"
+        : "RIGHT";
 
     const createdMember =
-      await this.adminService.createMember({
-        firstName: dto.firstName.trim(),
+      await this.membersService.createMember({
+        firstName:
+          dto.firstName,
 
         middleName:
-          dto.middleName?.trim() || undefined,
+          dto.middleName,
 
-        lastName: dto.lastName.trim(),
+        lastName:
+          dto.lastName,
 
-        address: dto.address.trim(),
+        address:
+          dto.address,
 
-        dateOfBirth: dto.dateOfBirth,
+        dateOfBirth:
+          dto.dateOfBirth,
 
         email:
-          dto.email?.trim().toLowerCase() ||
-          undefined,
+          dto.email,
 
-        phone: dto.phone.trim(),
+        phone:
+          dto.phone,
 
         username:
-          dto.username.trim().toLowerCase(),
+          dto.username,
 
         membershipType:
           dto.membershipType ??
           MembershipType.BASIC,
 
         activationCode:
-          dto.activationCode
-            .trim()
-            .toUpperCase(),
+          dto.activationCode,
 
+        /*
+         * Automatically use the authenticated
+         * sponsor's referral code.
+         */
         sponsorReferralCode:
           sponsor.referralCode,
 
-        password: dto.password,
+        password:
+          dto.password,
+
         confirmPassword:
           dto.confirmPassword,
       });
@@ -249,9 +284,11 @@ export class MemberDashboardService {
           ? "Member successfully added to the left branch."
           : "Member successfully added to the right branch.",
 
-      placement: calculatedPlacement,
+      placement:
+        calculatedPlacement,
 
-      member: createdMember,
+      member:
+        createdMember,
     };
   }
 
@@ -264,7 +301,8 @@ export class MemberDashboardService {
           id: memberId,
         },
 
-        select: genealogyMemberSelect,
+        select:
+          genealogyMemberSelect,
       });
 
     if (!rootMember) {
@@ -273,10 +311,19 @@ export class MemberDashboardService {
       );
     }
 
+    /*
+     * Load the authenticated member's direct
+     * referrals in creation order.
+     *
+     * The first three become the left branch.
+     * All later direct referrals become the
+     * right branch.
+     */
     const directReferrals =
       await this.prisma.member.findMany({
         where: {
-          sponsorId: rootMember.id,
+          sponsorId:
+            rootMember.id,
         },
 
         orderBy: [
@@ -288,11 +335,14 @@ export class MemberDashboardService {
           },
         ],
 
-        select: genealogyMemberSelect,
+        select:
+          genealogyMemberSelect,
       });
 
     const mappedRoot =
-      mapGenealogyMember(rootMember);
+      mapGenealogyMember(
+        rootMember,
+      );
 
     const mappedDirectReferrals =
       directReferrals.map(
@@ -318,42 +368,50 @@ export class MemberDashboardService {
     const activeMembers =
       visibleMembers.filter(
         (member) =>
-          member.status === "active",
+          member.status ===
+          "active",
       ).length;
 
     const pendingMembers =
       visibleMembers.filter(
         (member) =>
-          member.status === "pending",
+          member.status ===
+          "pending",
       ).length;
 
     const suspendedMembers =
       visibleMembers.filter(
         (member) =>
-          member.status === "suspended",
+          member.status ===
+          "suspended",
       ).length;
 
     const inactiveMembers =
       visibleMembers.filter(
         (member) =>
-          member.status === "inactive",
+          member.status ===
+          "inactive",
       ).length;
 
     const nextPlacement:
       GenealogyResponseDto["placementRules"]["nextPlacement"] =
-        mappedDirectReferrals.length <
-        DIRECT_LEFT_LIMIT
-          ? "LEFT"
-          : "RIGHT";
+      mappedDirectReferrals.length <
+      DIRECT_LEFT_LIMIT
+        ? "LEFT"
+        : "RIGHT";
 
     return {
       success: true,
 
-      root: mappedRoot,
+      root:
+        mappedRoot,
 
       branches: {
-        left: leftMembers,
-        right: rightMembers,
+        left:
+          leftMembers,
+
+        right:
+          rightMembers,
       },
 
       statistics: {
