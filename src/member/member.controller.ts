@@ -13,21 +13,17 @@ import { MemberDashboardService } from "./member-dashboard.service";
 interface AuthenticatedRequest extends Request {
   user: {
     sub: string;
-    username: string;
-    role: "member" | "admin";
+    username?: string;
+    role?: string;
   };
 }
 
 @Controller("member")
-export class MemberDashboardController {
+export class MemberController {
   constructor(
-    private readonly memberDashboardService: MemberDashboardService,
+    private readonly memberDashboardService:
+      MemberDashboardService,
   ) {}
-
-  @Get("dashboard/member-totals")
-  getMemberTotals() {
-    return this.memberDashboardService.getMemberTotals();
-  }
 
   @Get("genealogy")
   @UseGuards(JwtAuthGuard)

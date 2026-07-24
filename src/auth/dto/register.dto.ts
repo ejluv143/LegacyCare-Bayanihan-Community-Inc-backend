@@ -13,7 +13,9 @@ import {
 import { MembershipType } from "../../generated/prisma/client";
 
 function trim(value: unknown): unknown {
-  return typeof value === "string" ? value.trim() : value;
+  return typeof value === "string"
+    ? value.trim()
+    : value;
 }
 
 function optionalTrim(value: unknown): unknown {
@@ -27,11 +29,27 @@ function optionalTrim(value: unknown): unknown {
 }
 
 function lowercaseTrim(value: unknown): unknown {
-  return typeof value === "string" ? value.trim().toLowerCase() : value;
+  return typeof value === "string"
+    ? value.trim().toLowerCase()
+    : value;
 }
 
 function uppercaseTrim(value: unknown): unknown {
-  return typeof value === "string" ? value.trim().toUpperCase() : value;
+  return typeof value === "string"
+    ? value.trim().toUpperCase()
+    : value;
+}
+
+function optionalUppercaseTrim(
+  value: unknown,
+): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim().toUpperCase();
+
+  return trimmed || undefined;
 }
 
 export class RegisterDto {
@@ -43,7 +61,9 @@ export class RegisterDto {
   @MaxLength(100)
   firstName!: string;
 
-  @Transform(({ value }) => optionalTrim(value))
+  @Transform(({ value }) =>
+    optionalTrim(value),
+  )
   @IsOptional()
   @IsString()
   @MaxLength(100)
@@ -60,7 +80,8 @@ export class RegisterDto {
   @Transform(({ value }) => trim(value))
   @IsString()
   @MinLength(5, {
-    message: "address must contain at least 5 characters",
+    message:
+      "address must contain at least 5 characters",
   })
   @MaxLength(500)
   address!: string;
@@ -68,16 +89,20 @@ export class RegisterDto {
   @IsDateString(
     {},
     {
-      message: "dateOfBirth must be a valid date",
+      message:
+        "dateOfBirth must be a valid date",
     },
   )
   dateOfBirth!: string;
 
-  @Transform(({ value }) => lowercaseTrim(value))
+  @Transform(({ value }) =>
+    lowercaseTrim(value),
+  )
   @IsEmail(
     {},
     {
-      message: "email must be a valid email address",
+      message:
+        "email must be a valid email address",
     },
   )
   @MaxLength(191)
@@ -86,44 +111,61 @@ export class RegisterDto {
   @Transform(({ value }) => trim(value))
   @IsString()
   @Matches(/^\+?[0-9][0-9\s()-]{7,20}$/, {
-    message: "phone must be a valid phone number",
+    message:
+      "phone must be a valid phone number",
   })
   phone!: string;
 
   @IsEnum(MembershipType, {
-    message: "membershipType must be BASIC or PREMIUM",
+    message:
+      "membershipType must be BASIC or PREMIUM",
   })
   membershipType!: MembershipType;
 
   /**
-   * This code is checked against GeneratedCode.
+   * Checked against GeneratedCode.
    * Never save this plaintext value on Member.
    */
-  @Transform(({ value }) => uppercaseTrim(value))
+  @Transform(({ value }) =>
+    uppercaseTrim(value),
+  )
   @IsString()
   @MinLength(6)
   @MaxLength(40)
   @Matches(/^[A-Z0-9-]+$/, {
-    message: "activationCode may only contain letters, numbers, and hyphens",
+    message:
+      "activationCode may only contain letters, numbers, and hyphens",
   })
   activationCode!: string;
 
-  @Transform(({ value }) => uppercaseTrim(value))
+  /**
+   * Public registration:
+   * May be typed by the user or omitted.
+   *
+   * Genealogy registration:
+   * Automatically supplied from the selected
+   * sponsor's read-only referral-code field.
+   */
+  @Transform(({ value }) =>
+    optionalUppercaseTrim(value),
+  )
+  @IsOptional()
   @IsString()
-  @MinLength(1, {
-    message: "sponsorReferralCode is required",
-  })
+  @MinLength(1)
   @MaxLength(40)
   @Matches(/^[A-Z0-9-]+$/, {
     message:
       "sponsorReferralCode may only contain letters, numbers, and hyphens",
   })
-  sponsorReferralCode!: string;
+  sponsorReferralCode?: string;
 
-  @Transform(({ value }) => lowercaseTrim(value))
+  @Transform(({ value }) =>
+    lowercaseTrim(value),
+  )
   @IsString()
   @MinLength(4, {
-    message: "username must contain at least 4 characters",
+    message:
+      "username must contain at least 4 characters",
   })
   @MaxLength(50)
   @Matches(/^[a-z0-9._-]+$/, {
@@ -137,14 +179,16 @@ export class RegisterDto {
    */
   @IsString()
   @MinLength(8, {
-    message: "password must contain at least 8 characters",
+    message:
+      "password must contain at least 8 characters",
   })
   @MaxLength(128)
   password!: string;
 
   @IsString()
   @MinLength(8, {
-    message: "confirmPassword must contain at least 8 characters",
+    message:
+      "confirmPassword must contain at least 8 characters",
   })
   @MaxLength(128)
   confirmPassword!: string;
