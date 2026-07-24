@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -8,7 +9,10 @@ import {
   MembershipType,
 } from "../generated/prisma/client";
 
+import { AdminService } from "../admin/admin.service";
 import { PrismaService } from "../admin/database/prisma/prisma.service";
+
+import type { CreateGenealogyMemberDto } from "./dto/create-genealogy-member.dto";
 
 import type {
   GenealogyMemberDto,
@@ -123,9 +127,7 @@ function mapGenealogyMember(
       member.membershipType,
     ),
 
-    status: mapMemberStatus(
-      member.status,
-    ),
+    status: mapMemberStatus(member.status),
 
     referralCode: member.referralCode,
     sponsorId: member.sponsorId,
@@ -138,6 +140,7 @@ function mapGenealogyMember(
 export class MemberDashboardService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly adminService: AdminService,
   ) {}
 
   async getMemberTotals(): Promise<MemberDashboardTotals> {
@@ -153,8 +156,102 @@ export class MemberDashboardService {
       memberCount,
       beneficiaryCount,
       totalMembers:
-        memberCount +
-        beneficiaryCount,
+        memberCount + beneficiaryCount,
+    };
+  }
+
+  async createGenealogyMember(
+    sponsorMemberId: string,
+    dto: CreateGenealogyMemberDto,
+  ) {
+    const sponsor =
+      await this.prisma.member.findUnique({
+        where: {
+          id: sponsorMemberId,
+        },
+
+        select: {
+          id: true,
+          referralCode: true,
+          status: true,
+        },
+      });
+
+    if (!sponsor) {
+      throw new NotFoundException(
+        "Sponsor member account was not found.",
+      );
+    }
+
+    if (sponsor.status !== MemberStatus.ACTIVE) {
+      throw new BadRequestException(
+        "Your account must be active before you can add a member.",
+      );
+    }
+
+    const directReferralCount =
+      await this.prisma.member.count({
+        where: {
+          sponsorId: sponsor.id,
+        },
+      });
+
+    const calculatedPlacement:
+      "LEFT" | "RIGHT" =
+        directReferralCount < DIRECT_LEFT_LIMIT
+          ? "LEFT"
+          : "RIGHT";
+
+    const createdMember =
+      await this.adminService.createMember({
+        firstName: dto.firstName.trim(),
+
+        middleName:
+          dto.middleName?.trim() || undefined,
+
+        lastName: dto.lastName.trim(),
+
+        address: dto.address.trim(),
+
+        dateOfBirth: dto.dateOfBirth,
+
+        email:
+          dto.email?.trim().toLowerCase() ||
+          undefined,
+
+        phone: dto.phone.trim(),
+
+        username:
+          dto.username.trim().toLowerCase(),
+
+        membershipType:
+          dto.membershipType ??
+          MembershipType.BASIC,
+
+        activationCode:
+          dto.activationCode
+            .trim()
+            .toUpperCase(),
+
+        sponsorReferralCode:
+          sponsor.referralCode,
+
+        password: dto.password,
+        confirmPassword:
+          dto.confirmPassword,
+      });
+
+    return {
+      success: true,
+
+      message:
+        calculatedPlacement === "LEFT"
+          ? "Member successfully added to the left branch."
+          : "Member successfully added to the right branch.",
+
+      placement: calculatedPlacement,
+
+      member: createdMember,
     };
   }
 
@@ -195,9 +292,7 @@ export class MemberDashboardService {
       });
 
     const mappedRoot =
-      mapGenealogyMember(
-        rootMember,
-      );
+      mapGenealogyMember(rootMember);
 
     const mappedDirectReferrals =
       directReferrals.map(
