@@ -21,8 +21,7 @@ interface AuthenticatedRequest extends Request {
 @Controller("member")
 export class MemberController {
   constructor(
-    private readonly memberDashboardService:
-      MemberDashboardService,
+    private readonly memberDashboardService: MemberDashboardService,
   ) {}
 
   @Get("genealogy")
