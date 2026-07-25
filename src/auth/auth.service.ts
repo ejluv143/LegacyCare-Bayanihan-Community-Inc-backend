@@ -94,10 +94,6 @@ export class AuthService {
         activationCode:
           dto.activationCode,
 
-        /*
-         * Public registration requires the user
-         * to enter the sponsor referral code.
-         */
         sponsorReferralCode:
           dto.referralCode,
 
@@ -126,10 +122,6 @@ export class AuthService {
 
     /*
      * Temporary administrator account.
-     *
-     * This account is checked before querying
-     * the members table because it does not have
-     * a member database record.
      */
     const temporaryAdminEnabled =
       this.configService
@@ -166,12 +158,21 @@ export class AuthService {
         );
       }
 
+      const temporaryAdminMembershipId =
+        "ADMIN-TEMP-001";
+
       const token =
         await this.jwtService.signAsync({
           sub: "temporary-admin",
+
+          membershipId:
+            temporaryAdminMembershipId,
+
           username:
             temporaryAdminUsername,
+
           role: "admin",
+
           accountType: "admin",
         });
 
@@ -190,7 +191,7 @@ export class AuthService {
           id: "temporary-admin",
 
           membershipId:
-            "ADMIN-TEMP-001",
+            temporaryAdminMembershipId,
 
           firstName:
             "Legacy Care",
@@ -224,9 +225,11 @@ export class AuthService {
 
           activated: true,
 
-          createdAt: currentDate,
+          createdAt:
+            currentDate,
 
-          updatedAt: currentDate,
+          updatedAt:
+            currentDate,
         },
       };
     }
@@ -242,33 +245,35 @@ export class AuthService {
 
         select: {
           id: true,
+
           membershipId: true,
 
           firstName: true,
+
           middleName: true,
+
           lastName: true,
 
           username: true,
+
           email: true,
+
           phone: true,
 
           passwordHash: true,
 
           membershipType: true,
+
           status: true,
 
           referralCode: true,
 
           createdAt: true,
+
           updatedAt: true,
         },
       });
 
-    /*
-     * Use the same response for an unknown
-     * username, missing password hash, and an
-     * incorrect password.
-     */
     if (
       !member ||
       !member.passwordHash
@@ -296,10 +301,6 @@ export class AuthService {
       );
     }
 
-    /*
-     * Only suspended and disabled accounts
-     * are prevented from signing in.
-     */
     if (
       member.status ===
       MemberStatus.SUSPENDED
@@ -318,12 +319,26 @@ export class AuthService {
       );
     }
 
+    /*
+     * Include membershipId in the JWT payload.
+     * JwtStrategy will copy this value to request.user.
+     */
     const token =
       await this.jwtService.signAsync({
-        sub: member.id,
-        username: member.username,
-        role: "member",
-        accountType: "member",
+        sub:
+          member.id,
+
+        membershipId:
+          member.membershipId,
+
+        username:
+          member.username,
+
+        role:
+          "member",
+
+        accountType:
+          "member",
       });
 
     return {
@@ -335,7 +350,8 @@ export class AuthService {
       token,
 
       user: {
-        id: member.id,
+        id:
+          member.id,
 
         membershipId:
           member.membershipId,
@@ -366,20 +382,17 @@ export class AuthService {
         referralCode:
           member.referralCode,
 
-        role: "member" as const,
+        role:
+          "member" as const,
 
         status:
           mapMemberStatus(
             member.status,
           ),
 
-        emailVerified: false,
+        emailVerified:
+          false,
 
-        /*
-         * New registrations are ACTIVE.
-         * Older pending records are also treated
-         * as activated for backward compatibility.
-         */
         activated:
           member.status ===
             MemberStatus.ACTIVE ||

@@ -8,6 +8,7 @@ import {
 
 export interface JwtPayload {
   sub: string;
+  membershipId?: string;
   username: string;
   role: "member" | "admin";
   accountType?: "member" | "admin";
@@ -15,6 +16,7 @@ export interface JwtPayload {
 
 export interface AuthenticatedUser {
   sub: string;
+  membershipId?: string;
   username: string;
   role: "member" | "admin";
   accountType?: "member" | "admin";
@@ -54,9 +56,14 @@ export class JwtStrategy extends PassportStrategy(
   ): AuthenticatedUser {
     return {
       sub: payload.sub,
-      username: payload.username,
-      role: payload.role,
-      accountType: payload.accountType,
+      membershipId:
+        payload.membershipId,
+      username:
+        payload.username,
+      role:
+        payload.role,
+      accountType:
+        payload.accountType,
     };
   }
 }
