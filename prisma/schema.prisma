@@ -132,7 +132,7 @@ model Member {
   lastName   String  @map("last_name") @db.VarChar(100)
 
   address     String?   @db.Text
-dateOfBirth DateTime? @map("date_of_birth") @db.Date
+  dateOfBirth DateTime? @map("date_of_birth") @db.Date
 
   email String? @unique @db.VarChar(191)
   phone String  @db.VarChar(30)
@@ -157,7 +157,7 @@ dateOfBirth DateTime? @map("date_of_birth") @db.Date
 
   redeemedGeneratedCodes GeneratedCode[] @relation("GeneratedCodeUsedByMember")
 
- memberSince DateTime? @map("member_since") @db.Date
+  memberSince DateTime? @map("member_since") @db.Date
   activatedAt DateTime? @map("activated_at") @db.DateTime(3)
 
   // Only the first member receives the value "ROOT".
