@@ -297,11 +297,11 @@ export class MembersService {
               startOfToday(),
 
             activatedAt:
-              null,
+              new Date(),
 
             status:
               MemberStatus
-                .PENDING_ACTIVATION,
+                .ACTIVE,
           },
 
           select: {

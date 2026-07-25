@@ -392,6 +392,98 @@ export class AdminCodesService {
     });
   }
 
+  async redeemBeneficiaryCode(
+    code: string,
+    memberId: string,
+    memberName: string,
+  ) {
+    await this.expireAvailableCodes();
+
+    return this.runSerializableTransaction(
+      async (transaction) => {
+        const normalizedCode = code.trim().toUpperCase();
+
+        if (!normalizedCode) {
+          throw new BadRequestException(
+            'Beneficiary code is required.',
+          );
+        }
+
+        const generatedCode =
+          await transaction.generatedCode.findUnique({
+            where: {
+              code: normalizedCode,
+            },
+          });
+
+        if (!generatedCode) {
+          throw new NotFoundException(
+            'Beneficiary code was not found.',
+          );
+        }
+
+        if (
+          generatedCode.category !==
+          PrismaGeneratedCodeCategory.BENEFICIARY
+        ) {
+          throw new BadRequestException(
+            'The submitted code is not a beneficiary code.',
+          );
+        }
+
+        if (
+          generatedCode.status !==
+          PrismaGeneratedCodeStatus.AVAILABLE
+        ) {
+          throw new ConflictException(
+            `This beneficiary code is ${toApiStatus(
+              generatedCode.status,
+            )}.`,
+          );
+        }
+
+        if (
+          generatedCode.expiresAt &&
+          generatedCode.expiresAt.getTime() <= Date.now()
+        ) {
+          await transaction.generatedCode.update({
+            where: {
+              id: generatedCode.id,
+            },
+            data: {
+              status: PrismaGeneratedCodeStatus.EXPIRED,
+            },
+          });
+
+          throw new ConflictException(
+            'This beneficiary code has expired.',
+          );
+        }
+
+        const updatedCode =
+          await transaction.generatedCode.update({
+            where: {
+              id: generatedCode.id,
+            },
+            data: {
+              status: PrismaGeneratedCodeStatus.USED,
+              usedAt: new Date(),
+              usedByMemberId: memberId,
+              usedByMemberName: memberName,
+            },
+          });
+
+        return {
+          success: true,
+          unlocked: true,
+          message:
+            'Beneficiary access unlocked successfully.',
+          code: mapGeneratedCode(updatedCode),
+        };
+      },
+    );
+  }
+
   async getGenerationHistory(query: GeneratedCodesQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;

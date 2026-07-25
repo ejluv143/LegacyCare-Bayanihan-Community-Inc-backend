@@ -20,7 +20,6 @@ import { LoginDto } from "./dto/login.dto";
 import { RegisterMemberDto } from "./dto/register-member.dto";
 
 type FrontendMemberStatus =
-  | "pending"
   | "active"
   | "suspended"
   | "inactive";
@@ -33,18 +32,16 @@ function mapMemberStatus(
   status: MemberStatus,
 ): FrontendMemberStatus {
   switch (status) {
-    case MemberStatus.ACTIVE:
-      return "active";
-
     case MemberStatus.SUSPENDED:
       return "suspended";
 
     case MemberStatus.DISABLED:
       return "inactive";
 
+    case MemberStatus.ACTIVE:
     case MemberStatus.PENDING_ACTIVATION:
     default:
-      return "pending";
+      return "active";
   }
 }
 
@@ -300,8 +297,8 @@ export class AuthService {
     }
 
     /*
-     * Pending activation members are currently
-     * allowed to sign in.
+     * Only suspended and disabled accounts
+     * are prevented from signing in.
      */
     if (
       member.status ===
@@ -378,9 +375,16 @@ export class AuthService {
 
         emailVerified: false,
 
+        /*
+         * New registrations are ACTIVE.
+         * Older pending records are also treated
+         * as activated for backward compatibility.
+         */
         activated:
           member.status ===
-          MemberStatus.ACTIVE,
+            MemberStatus.ACTIVE ||
+          member.status ===
+            MemberStatus.PENDING_ACTIVATION,
 
         createdAt:
           member.createdAt.toISOString(),

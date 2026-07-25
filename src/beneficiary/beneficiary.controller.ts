@@ -1,83 +1,111 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
   Post,
   Req,
   UnauthorizedException,
+  UseGuards,
 } from "@nestjs/common";
-import {
-  IsIn,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from "class-validator";
+
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
 import { BeneficiaryService } from "./beneficiary.service";
-
-const RELATIONSHIPS = [
-  "Spouse",
-  "Child",
-  "Parent",
-  "Sibling",
-  "Grandparent",
-  "Guardian",
-  "Other",
-] as const;
-
-class CreateBeneficiaryDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
-  firstName!: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  middleName?: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
-  lastName!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(1000)
-  address!: string;
-
-  @IsString()
-  @IsIn(RELATIONSHIPS)
-  relationship!: string;
-}
+import { CreateBeneficiaryDto } from "./dto/create-beneficiary.dto";
+import { UpdateBeneficiaryDto } from "./dto/update-beneficiary.dto";
+import { VerifyBeneficiaryUnlockCodeDto } from "./dto/verify-beneficiary-unlock-code.dto";
 
 interface AuthenticatedMemberRequest {
   user?: {
+    sub?: string;
     membershipId?: string;
+
     member?: {
       membershipId?: string;
     };
   };
 }
 
-@Controller("member/dashboard/beneficiaries")
+@Controller("member/beneficiaries")
+@UseGuards(JwtAuthGuard)
 export class BeneficiaryController {
-  constructor(private readonly beneficiaryService: BeneficiaryService) {}
+  constructor(
+    private readonly beneficiaryService: BeneficiaryService,
+  ) {}
+
+  @Get()
+  getBeneficiaries(
+    @Req() request: AuthenticatedMemberRequest,
+  ) {
+    return this.beneficiaryService.getBeneficiaries(
+      this.getMembershipId(request),
+    );
+  }
 
   @Post()
-  create(
+  createBeneficiary(
     @Req() request: AuthenticatedMemberRequest,
-    @Body() body: CreateBeneficiaryDto,
+    @Body() dto: CreateBeneficiaryDto,
   ) {
-    const primaryMembershipId =
-      request.user?.membershipId ?? request.user?.member?.membershipId;
+    return this.beneficiaryService.createForMember(
+      this.getMembershipId(request),
+      dto,
+    );
+  }
 
-    if (!primaryMembershipId) {
+  @Patch(":beneficiaryId")
+  updateBeneficiary(
+    @Req() request: AuthenticatedMemberRequest,
+    @Param("beneficiaryId")
+    beneficiaryId: string,
+    @Body() dto: UpdateBeneficiaryDto,
+  ) {
+    return this.beneficiaryService.updateBeneficiary(
+      this.getMembershipId(request),
+      beneficiaryId,
+      dto,
+    );
+  }
+
+  @Delete(":beneficiaryId")
+  deleteBeneficiary(
+    @Req() request: AuthenticatedMemberRequest,
+    @Param("beneficiaryId")
+    beneficiaryId: string,
+  ) {
+    return this.beneficiaryService.deleteBeneficiary(
+      this.getMembershipId(request),
+      beneficiaryId,
+    );
+  }
+
+  @Post("unlock")
+  verifyUnlockCode(
+    @Req() request: AuthenticatedMemberRequest,
+    @Body() dto: VerifyBeneficiaryUnlockCodeDto,
+  ) {
+    return this.beneficiaryService.verifyUnlockCode(
+      this.getMembershipId(request),
+      dto,
+    );
+  }
+
+  private getMembershipId(
+    request: AuthenticatedMemberRequest,
+  ): string {
+    const membershipId =
+      request.user?.membershipId ??
+      request.user?.member?.membershipId;
+
+    if (!membershipId) {
       throw new UnauthorizedException(
         "The authenticated member ID was not found.",
       );
     }
 
-    return this.beneficiaryService.createForMember(primaryMembershipId, body);
+    return membershipId;
   }
 }
