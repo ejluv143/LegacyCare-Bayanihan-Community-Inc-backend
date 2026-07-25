@@ -22,10 +22,9 @@ interface AuthenticatedMemberRequest {
   user?: {
     sub?: string;
     membershipId?: string;
-
-    member?: {
-      membershipId?: string;
-    };
+    username?: string;
+    role?: "member" | "admin";
+    accountType?: "member" | "admin";
   };
 }
 
@@ -41,7 +40,7 @@ export class BeneficiaryController {
     @Req() request: AuthenticatedMemberRequest,
   ) {
     return this.beneficiaryService.getBeneficiaries(
-      this.getMembershipId(request),
+      this.getMemberIdentifier(request),
     );
   }
 
@@ -51,34 +50,8 @@ export class BeneficiaryController {
     @Body() dto: CreateBeneficiaryDto,
   ) {
     return this.beneficiaryService.createForMember(
-      this.getMembershipId(request),
+      this.getMemberIdentifier(request),
       dto,
-    );
-  }
-
-  @Patch(":beneficiaryId")
-  updateBeneficiary(
-    @Req() request: AuthenticatedMemberRequest,
-    @Param("beneficiaryId")
-    beneficiaryId: string,
-    @Body() dto: UpdateBeneficiaryDto,
-  ) {
-    return this.beneficiaryService.updateBeneficiary(
-      this.getMembershipId(request),
-      beneficiaryId,
-      dto,
-    );
-  }
-
-  @Delete(":beneficiaryId")
-  deleteBeneficiary(
-    @Req() request: AuthenticatedMemberRequest,
-    @Param("beneficiaryId")
-    beneficiaryId: string,
-  ) {
-    return this.beneficiaryService.deleteBeneficiary(
-      this.getMembershipId(request),
-      beneficiaryId,
     );
   }
 
@@ -88,24 +61,64 @@ export class BeneficiaryController {
     @Body() dto: VerifyBeneficiaryUnlockCodeDto,
   ) {
     return this.beneficiaryService.verifyUnlockCode(
-      this.getMembershipId(request),
+      this.getMemberIdentifier(request),
       dto,
     );
   }
 
-  private getMembershipId(
+  @Patch(":beneficiaryId")
+  updateBeneficiary(
+    @Req() request: AuthenticatedMemberRequest,
+    @Param("beneficiaryId") beneficiaryId: string,
+    @Body() dto: UpdateBeneficiaryDto,
+  ) {
+    return this.beneficiaryService.updateBeneficiary(
+      this.getMemberIdentifier(request),
+      beneficiaryId,
+      dto,
+    );
+  }
+
+  @Delete(":beneficiaryId")
+  deleteBeneficiary(
+    @Req() request: AuthenticatedMemberRequest,
+    @Param("beneficiaryId") beneficiaryId: string,
+  ) {
+    return this.beneficiaryService.deleteBeneficiary(
+      this.getMemberIdentifier(request),
+      beneficiaryId,
+    );
+  }
+
+  private getMemberIdentifier(
     request: AuthenticatedMemberRequest,
   ): string {
-    const membershipId =
-      request.user?.membershipId ??
-      request.user?.member?.membershipId;
+    const user = request.user;
 
-    if (!membershipId) {
+    if (!user) {
+      throw new UnauthorizedException(
+        "Authentication is required.",
+      );
+    }
+
+    if (
+      user.role !== "member" ||
+      user.accountType !== "member"
+    ) {
+      throw new UnauthorizedException(
+        "A member account is required.",
+      );
+    }
+
+    const memberIdentifier =
+      user.membershipId ?? user.sub;
+
+    if (!memberIdentifier) {
       throw new UnauthorizedException(
         "The authenticated member ID was not found.",
       );
     }
 
-    return membershipId;
+    return memberIdentifier;
   }
 }

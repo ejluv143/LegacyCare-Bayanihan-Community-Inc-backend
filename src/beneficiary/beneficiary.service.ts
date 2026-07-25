@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from "@nestjs/common";
 
 import { PrismaService } from "../admin/database/prisma/prisma.service";
@@ -43,17 +44,18 @@ export class BeneficiaryService {
   ) {}
 
   async getBeneficiaries(
-    primaryMembershipId: string,
+    memberIdentifier: string,
   ): Promise<BeneficiariesResponse> {
     const primaryMember =
       await this.findPrimaryMember(
-        primaryMembershipId,
+        memberIdentifier,
       );
 
     const savedBeneficiaries =
       await this.prisma.beneficiary.findMany({
         where: {
-          primaryMemberId: primaryMember.id,
+          primaryMemberId:
+            primaryMember.id,
         },
         orderBy: {
           sequence: "asc",
@@ -63,15 +65,18 @@ export class BeneficiaryService {
     const beneficiarySlots: BeneficiarySlot[] =
       Array.from(
         {
-          length: MAXIMUM_BENEFICIARIES,
+          length:
+            MAXIMUM_BENEFICIARIES,
         },
         (_, index) => {
-          const slotNumber = index + 1;
+          const slotNumber =
+            index + 1;
 
           const beneficiary =
             savedBeneficiaries.find(
               (item) =>
-                item.sequence === slotNumber,
+                item.sequence ===
+                slotNumber,
             );
 
           if (!beneficiary) {
@@ -89,11 +94,13 @@ export class BeneficiaryService {
     const completedCount =
       beneficiarySlots.filter(
         (beneficiary) =>
-          beneficiary.status === "completed",
+          beneficiary.status ===
+          "completed",
       ).length;
 
     return {
-      beneficiaries: beneficiarySlots,
+      beneficiaries:
+        beneficiarySlots,
 
       maximumBeneficiaries:
         MAXIMUM_BENEFICIARIES,
@@ -106,26 +113,28 @@ export class BeneficiaryService {
           : null,
 
       /*
-       * Temporary value until beneficiary
-       * unlock-state fields are added to Prisma.
+       * Temporary value until
+       * beneficiary unlock-state
+       * fields are added to Prisma.
        */
       accessUnlocked: true,
     };
   }
 
   async createForMember(
-    primaryMembershipId: string,
+    memberIdentifier: string,
     input: CreateBeneficiaryDto,
   ): Promise<Beneficiary> {
     const primaryMember =
       await this.findPrimaryMember(
-        primaryMembershipId,
+        memberIdentifier,
       );
 
     const currentCount =
       await this.prisma.beneficiary.count({
         where: {
-          primaryMemberId: primaryMember.id,
+          primaryMemberId:
+            primaryMember.id,
         },
       });
 
@@ -161,7 +170,8 @@ export class BeneficiaryService {
       const sequence =
         findAvailableSequence(
           usedSequences.map(
-            (item) => item.sequence,
+            (item) =>
+              item.sequence,
           ),
         );
 
@@ -211,7 +221,9 @@ export class BeneficiaryService {
         );
       } catch (error: unknown) {
         if (
-          isUniqueConstraintError(error)
+          isUniqueConstraintError(
+            error,
+          )
         ) {
           continue;
         }
@@ -226,20 +238,29 @@ export class BeneficiaryService {
   }
 
   async updateBeneficiary(
-    primaryMembershipId: string,
+    memberIdentifier: string,
     beneficiaryId: string,
     input: UpdateBeneficiaryDto,
   ): Promise<Beneficiary> {
     const primaryMember =
       await this.findPrimaryMember(
-        primaryMembershipId,
+        memberIdentifier,
       );
+
+    const normalizedBeneficiaryId =
+      beneficiaryId.trim();
+
+    if (!normalizedBeneficiaryId) {
+      throw new BadRequestException(
+        "Beneficiary ID is required.",
+      );
+    }
 
     const beneficiary =
       await this.prisma.beneficiary.findFirst({
         where: {
           beneficiaryId:
-            beneficiaryId.trim(),
+            normalizedBeneficiaryId,
 
           primaryMemberId:
             primaryMember.id,
@@ -259,29 +280,34 @@ export class BeneficiaryService {
         },
         data: {
           firstName:
-            input.firstName !== undefined
+            input.firstName !==
+            undefined
               ? input.firstName.trim()
               : undefined,
 
           middleName:
-            input.middleName !== undefined
+            input.middleName !==
+            undefined
               ? normalizeOptionalText(
                   input.middleName,
                 )
               : undefined,
 
           lastName:
-            input.lastName !== undefined
+            input.lastName !==
+            undefined
               ? input.lastName.trim()
               : undefined,
 
           address:
-            input.address !== undefined
+            input.address !==
+            undefined
               ? input.address.trim()
               : undefined,
 
           relationship:
-            input.relationship !== undefined
+            input.relationship !==
+            undefined
               ? input.relationship.trim()
               : undefined,
         },
@@ -293,19 +319,28 @@ export class BeneficiaryService {
   }
 
   async deleteBeneficiary(
-    primaryMembershipId: string,
+    memberIdentifier: string,
     beneficiaryId: string,
   ): Promise<void> {
     const primaryMember =
       await this.findPrimaryMember(
-        primaryMembershipId,
+        memberIdentifier,
       );
+
+    const normalizedBeneficiaryId =
+      beneficiaryId.trim();
+
+    if (!normalizedBeneficiaryId) {
+      throw new BadRequestException(
+        "Beneficiary ID is required.",
+      );
+    }
 
     const beneficiary =
       await this.prisma.beneficiary.findFirst({
         where: {
           beneficiaryId:
-            beneficiaryId.trim(),
+            normalizedBeneficiaryId,
 
           primaryMemberId:
             primaryMember.id,
@@ -329,11 +364,11 @@ export class BeneficiaryService {
   }
 
   async verifyUnlockCode(
-    primaryMembershipId: string,
+    memberIdentifier: string,
     input: VerifyBeneficiaryUnlockCodeDto,
   ): Promise<VerifyBeneficiaryUnlockCodeResponse> {
     await this.findPrimaryMember(
-      primaryMembershipId,
+      memberIdentifier,
     );
 
     const normalizedCode =
@@ -355,7 +390,8 @@ export class BeneficiaryService {
     }
 
     if (
-      normalizedCode !== configuredUnlockCode
+      normalizedCode !==
+      configuredUnlockCode
     ) {
       throw new BadRequestException(
         "The beneficiary unlock code is invalid.",
@@ -365,8 +401,9 @@ export class BeneficiaryService {
     /*
      * Temporary implementation.
      *
-     * This only validates the environment code.
-     * It does not persist an unlocked state yet.
+     * This validates the configured
+     * environment code only. It does
+     * not persist an unlocked state.
      */
     return {
       success: true,
@@ -377,16 +414,38 @@ export class BeneficiaryService {
   }
 
   private async findPrimaryMember(
-    primaryMembershipId: string,
+    memberIdentifier: string,
   ) {
-    const normalizedMembershipId =
-      primaryMembershipId.trim();
+    const normalizedIdentifier =
+      memberIdentifier.trim();
 
+    if (!normalizedIdentifier) {
+      throw new UnauthorizedException(
+        "The authenticated member ID was not found.",
+      );
+    }
+
+    /*
+     * The identifier can be either:
+     *
+     * 1. The member database UUID
+     *    stored in JWT `sub`.
+     *
+     * 2. The public membership ID
+     *    stored in JWT `membershipId`.
+     */
     const primaryMember =
-      await this.prisma.member.findUnique({
+      await this.prisma.member.findFirst({
         where: {
-          membershipId:
-            normalizedMembershipId,
+          OR: [
+            {
+              id: normalizedIdentifier,
+            },
+            {
+              membershipId:
+                normalizedIdentifier,
+            },
+          ],
         },
         select: {
           id: true,
