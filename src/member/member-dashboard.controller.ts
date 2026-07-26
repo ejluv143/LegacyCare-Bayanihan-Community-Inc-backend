@@ -29,6 +29,12 @@ export class MemberDashboardController {
     return this.memberDashboardService.getMemberTotals();
   }
 
+  @Get("dashboard/recent-verified-members")
+  @UseGuards(JwtAuthGuard)
+  getRecentVerifiedMembers() {
+    return this.memberDashboardService.getRecentVerifiedMembers();
+  }
+
   @Get("genealogy")
   @UseGuards(JwtAuthGuard)
   getGenealogy(

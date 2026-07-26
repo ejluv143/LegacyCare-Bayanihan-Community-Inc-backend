@@ -25,6 +25,20 @@ export interface MemberDashboardTotals {
   totalMembers: number;
 }
 
+export interface RecentVerifiedMemberDto {
+  id: string;
+  membershipId: string;
+  fullName: string;
+  membershipType: "basic" | "premium";
+  avatarUrl: string | null;
+  verifiedAt: string | null;
+}
+
+export interface RecentVerifiedMembersResponse {
+  success: true;
+  members: RecentVerifiedMemberDto[];
+}
+
 interface GenealogyMemberRecord {
   id: string;
   membershipId: string;
@@ -49,7 +63,21 @@ interface GenealogyMemberRecord {
   createdAt: Date;
 }
 
+interface RecentVerifiedMemberRecord {
+  id: string;
+  membershipId: string;
+
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
+
+  membershipType: MembershipType;
+
+  activatedAt: Date | null;
+}
+
 const DIRECT_LEFT_LIMIT = 3;
+const RECENT_VERIFIED_MEMBERS_LIMIT = 5;
 
 const genealogyMemberSelect = {
   id: true,
@@ -69,6 +97,38 @@ const genealogyMemberSelect = {
 
   createdAt: true,
 } as const;
+
+const recentVerifiedMemberSelect = {
+  id: true,
+  membershipId: true,
+
+  firstName: true,
+  middleName: true,
+  lastName: true,
+
+  membershipType: true,
+
+  activatedAt: true,
+} as const;
+
+function createFullName(
+  firstName: string,
+  middleName: string | null,
+  lastName: string,
+): string {
+  return [
+    firstName,
+    middleName,
+    lastName,
+  ]
+    .filter(
+      (value): value is string =>
+        typeof value === "string" &&
+        value.trim().length > 0,
+    )
+    .map((value) => value.trim())
+    .join(" ");
+}
 
 function mapMemberStatus(
   status: MemberStatus,
@@ -105,18 +165,6 @@ function mapMembershipType(
 function mapGenealogyMember(
   member: GenealogyMemberRecord,
 ): GenealogyMemberDto {
-  const fullName = [
-    member.firstName,
-    member.middleName,
-    member.lastName,
-  ]
-    .filter(
-      (value): value is string =>
-        typeof value === "string" &&
-        value.trim().length > 0,
-    )
-    .join(" ");
-
   return {
     id: member.id,
     membershipId: member.membershipId,
@@ -124,7 +172,12 @@ function mapGenealogyMember(
     firstName: member.firstName,
     middleName: member.middleName,
     lastName: member.lastName,
-    fullName,
+
+    fullName: createFullName(
+      member.firstName,
+      member.middleName,
+      member.lastName,
+    ),
 
     username: member.username,
 
@@ -142,6 +195,38 @@ function mapGenealogyMember(
 
     createdAt:
       member.createdAt.toISOString(),
+  };
+}
+
+function mapRecentVerifiedMember(
+  member: RecentVerifiedMemberRecord,
+): RecentVerifiedMemberDto {
+  return {
+    id: member.id,
+    membershipId: member.membershipId,
+
+    fullName: createFullName(
+      member.firstName,
+      member.middleName,
+      member.lastName,
+    ),
+
+    membershipType: mapMembershipType(
+      member.membershipType,
+    ),
+
+    /*
+     * The current Prisma selection does not
+     * include a member profile image field.
+     *
+     * The frontend can display initials when
+     * avatarUrl is null.
+     */
+    avatarUrl: null,
+
+    verifiedAt:
+      member.activatedAt?.toISOString() ??
+      null,
   };
 }
 
@@ -168,6 +253,42 @@ export class MemberDashboardService {
       totalMembers:
         memberCount +
         beneficiaryCount,
+    };
+  }
+
+  async getRecentVerifiedMembers(): Promise<RecentVerifiedMembersResponse> {
+    const recentMembers =
+      await this.prisma.member.findMany({
+        where: {
+          status: MemberStatus.ACTIVE,
+        },
+
+        orderBy: [
+          {
+            activatedAt: "desc",
+          },
+          {
+            createdAt: "desc",
+          },
+          {
+            id: "desc",
+          },
+        ],
+
+        take:
+          RECENT_VERIFIED_MEMBERS_LIMIT,
+
+        select:
+          recentVerifiedMemberSelect,
+      });
+
+    return {
+      success: true,
+
+      members:
+        recentMembers.map(
+          mapRecentVerifiedMember,
+        ),
     };
   }
 
