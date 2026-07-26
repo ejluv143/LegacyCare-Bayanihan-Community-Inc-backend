@@ -24,6 +24,16 @@ export class MemberDashboardController {
     private readonly memberDashboardService: MemberDashboardService,
   ) {}
 
+  @Get("dashboard/stats")
+  @UseGuards(JwtAuthGuard)
+  getDashboardStats(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.memberDashboardService.getDashboardStats(
+      request.user.sub,
+    );
+  }
+
   @Get("dashboard/member-totals")
   getMemberTotals() {
     return this.memberDashboardService.getMemberTotals();

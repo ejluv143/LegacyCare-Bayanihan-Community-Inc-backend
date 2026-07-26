@@ -19,6 +19,28 @@ import type {
   GenealogyResponseDto,
 } from "./member-dashboard.types";
 
+export interface MemberDashboardStats {
+  walletBalance: number;
+  walletGrowthPercent: number;
+
+  totalEarnings: number;
+  earningsGrowthPercent: number;
+
+  referralCommission: number;
+  referralCommissionGrowthPercent: number;
+
+  groupCommission: number;
+  groupCommissionGrowthPercent: number;
+
+  monthlyIncoming: number;
+  monthlyWithdrawals: number;
+}
+
+export interface MemberDashboardStatsResponse {
+  success: true;
+  stats: MemberDashboardStats;
+}
+
 export interface MemberDashboardTotals {
   memberCount: number;
   beneficiaryCount: number;
@@ -162,6 +184,19 @@ function mapMembershipType(
   }
 }
 
+function mapRecentMembershipType(
+  membershipType: MembershipType,
+): RecentVerifiedMemberDto["membershipType"] {
+  switch (membershipType) {
+    case MembershipType.PREMIUM:
+      return "premium";
+
+    case MembershipType.BASIC:
+    default:
+      return "basic";
+  }
+}
+
 function mapGenealogyMember(
   member: GenealogyMemberRecord,
 ): GenealogyMemberDto {
@@ -211,16 +246,16 @@ function mapRecentVerifiedMember(
       member.lastName,
     ),
 
-    membershipType: mapMembershipType(
+    membershipType: mapRecentMembershipType(
       member.membershipType,
     ),
 
     /*
-     * The current Prisma selection does not
-     * include a member profile image field.
+     * The current Prisma schema does not expose
+     * a profile-image field in this selection.
      *
-     * The frontend can display initials when
-     * avatarUrl is null.
+     * The frontend should display the member's
+     * initials whenever avatarUrl is null.
      */
     avatarUrl: null,
 
@@ -236,6 +271,56 @@ export class MemberDashboardService {
     private readonly prisma: PrismaService,
     private readonly membersService: MembersService,
   ) {}
+
+  /**
+   * Returns the authenticated member's dashboard
+   * wallet and commission statistics.
+   *
+   * The member is validated against the database.
+   * The financial values currently start at zero
+   * until wallet and transaction models are connected.
+   */
+  async getDashboardStats(
+    memberId: string,
+  ): Promise<MemberDashboardStatsResponse> {
+    const member =
+      await this.prisma.member.findUnique({
+        where: {
+          id: memberId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (!member) {
+      throw new NotFoundException(
+        "Member account was not found.",
+      );
+    }
+
+    return {
+      success: true,
+
+      stats: {
+        walletBalance: 0,
+        walletGrowthPercent: 0,
+
+        totalEarnings: 0,
+        earningsGrowthPercent: 0,
+
+        referralCommission: 0,
+        referralCommissionGrowthPercent: 0,
+
+        groupCommission: 0,
+        groupCommissionGrowthPercent: 0,
+
+        monthlyIncoming: 0,
+        monthlyWithdrawals: 0,
+      },
+    };
+  }
 
   async getMemberTotals(): Promise<MemberDashboardTotals> {
     const [
