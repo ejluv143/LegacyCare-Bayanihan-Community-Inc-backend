@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BeneficiaryModule } from './beneficiary/beneficiary.module';
+import { DigitalIdModule } from './digital-id/digital-id.module';
 import { MemberDashboardModule } from './member/member-dashboard.module';
 
 @Module({
@@ -15,12 +16,24 @@ import { MemberDashboardModule } from './member/member-dashboard.module';
       envFilePath: '.env',
       cache: true,
     }),
+
     AdminModule,
+
     AuthModule,
+
     BeneficiaryModule,
+
     MemberDashboardModule,
+
+    DigitalIdModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+
+  controllers: [
+    AppController,
+  ],
+
+  providers: [
+    AppService,
+  ],
 })
 export class AppModule {}

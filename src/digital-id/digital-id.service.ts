@@ -1,0 +1,556 @@
+import {
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+import {
+  PrismaService,
+} from '../admin/database/prisma/prisma.service';
+
+import {
+  mapMemberStatus,
+  mapMembershipType,
+} from './digital-id.types';
+
+import type {
+  DigitalIdResponse,
+} from './digital-id.types';
+
+/* =========================================================
+   CONSTANTS
+========================================================= */
+
+const DIGITAL_ID_VALIDITY_YEARS = 2;
+
+const ORGANIZATION = {
+  name:
+    'Legacy Care Bayanihan Community Inc.',
+
+  serviceName:
+    'Social Welfare Services',
+
+  tagline:
+    'Stronger Together. Protected Forever.',
+
+  logo:
+    '/logos/legacylogo.png',
+
+  shield:
+    'https://api.iconify.design/mdi/shield-account.svg?color=%23064329',
+
+  address:
+    'Purok 5, Barangay Poblacion, Valencia City, Bukidnon, 8709',
+
+  website:
+    'www.legacycare.ph',
+
+  email:
+    'support@legacycare.ph',
+};
+
+const DEFAULT_MEMBER_PHOTO =
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=85';
+
+/* =========================================================
+   SERVICE
+========================================================= */
+
+@Injectable()
+export class DigitalIdService {
+  constructor(
+    private readonly prisma:
+      PrismaService,
+  ) {}
+
+  /* =======================================================
+     GET DIGITAL ID
+  ======================================================= */
+
+  async getDigitalId(
+    memberId: string,
+  ): Promise<DigitalIdResponse> {
+    const member =
+      await this.prisma.member.findUnique({
+        where: {
+          id: memberId,
+        },
+
+        include: {
+          beneficiaries: {
+            orderBy: {
+              sequence:
+                'asc',
+            },
+          },
+        },
+      });
+
+    if (!member) {
+      throw new NotFoundException(
+        'Member account not found.',
+      );
+    }
+
+    /* =====================================================
+       MEMBER NAME
+    ===================================================== */
+
+    const fullName =
+      this.buildFullName(
+        member.firstName,
+        member.middleName,
+        member.lastName,
+      );
+
+    /* =====================================================
+       MEMBERSHIP
+    ===================================================== */
+
+    const membershipLevel =
+      mapMembershipType(
+        member.membershipType,
+      );
+
+    const membershipStatus =
+      mapMemberStatus(
+        member.status,
+      );
+
+    /* =====================================================
+       VALIDITY
+    ===================================================== */
+
+    const validityStart =
+      member.activatedAt ??
+      member.memberSince ??
+      member.createdAt;
+
+    const expirationDate =
+      this.calculateExpirationDate(
+        validityStart,
+      );
+
+    /* =====================================================
+       MEMBER RESPONSE
+    ===================================================== */
+
+    const digitalIdMember = {
+      id:
+        member.id,
+
+      firstName:
+        member.firstName,
+
+      middleName:
+        member.middleName,
+
+      lastName:
+        member.lastName,
+
+      fullName,
+
+      birthDate:
+        this.formatDate(
+          member.dateOfBirth,
+        ),
+
+      address:
+        member.address,
+
+      /*
+       * Your current Member model stores the
+       * member address as one text field.
+       */
+      city:
+        null,
+
+      province:
+        null,
+
+      postalCode:
+        null,
+
+      mobileNumber:
+        member.phone,
+
+      email:
+        member.email,
+
+      /*
+       * There is currently no profilePhoto
+       * field in the Member model.
+       */
+      profilePhoto:
+        null,
+
+      /*
+       * QR is generated/displayed by the frontend
+       * using verification information for now.
+       */
+      qrCode:
+        null,
+
+      membership: {
+        membershipId:
+          member.membershipId,
+
+        level:
+          membershipLevel,
+
+        status:
+          membershipStatus,
+
+        activationDate:
+          this.formatDate(
+            member.activatedAt ??
+              validityStart,
+          ),
+
+        expirationDate:
+          this.formatDate(
+            expirationDate,
+          ),
+      },
+    };
+
+    /* =====================================================
+       BENEFICIARIES
+    ===================================================== */
+
+    const beneficiaries =
+      member.beneficiaries
+        .filter(
+          (beneficiary) =>
+            beneficiary.sequence >=
+              1 &&
+            beneficiary.sequence <=
+              5,
+        )
+        .map(
+          (beneficiary) => ({
+            id:
+              beneficiary.id,
+
+            position:
+              beneficiary.sequence as
+                | 1
+                | 2
+                | 3
+                | 4
+                | 5,
+
+            firstName:
+              beneficiary.firstName,
+
+            middleName:
+              beneficiary.middleName,
+
+            lastName:
+              beneficiary.lastName,
+
+            fullName:
+              this.buildFullName(
+                beneficiary.firstName,
+                beneficiary.middleName,
+                beneficiary.lastName,
+              ),
+
+            relationship:
+              beneficiary.relationship,
+
+            /*
+             * Beneficiary currently has no
+             * dateOfBirth field in Prisma.
+             */
+            birthDate:
+              null,
+          }),
+        );
+
+    /* =====================================================
+       BENEFITS
+    ===================================================== */
+
+    const benefits = [
+      {
+        id:
+          'accidental-death-24-hours',
+
+        title:
+          'Accidental Death Assistance',
+
+        subtitle:
+          'After 24 Hours',
+
+        amount:
+          '₱25,000 Cash',
+
+        grocery:
+          '₱5,000 Grocery',
+      },
+
+      {
+        id:
+          'accidental-death-six-months',
+
+        title:
+          'Accidental Death Assistance',
+
+        subtitle:
+          '6 Months Contestability',
+
+        amount:
+          '₱50,000 Cash',
+
+        grocery:
+          '₱10,000 Grocery',
+      },
+
+      {
+        id:
+          'natural-death-four-months',
+
+        title:
+          'Natural Death Assistance',
+
+        subtitle:
+          '4 Months Contestability',
+
+        amount:
+          '₱25,000 Cash',
+
+        grocery:
+          '₱5,000 Grocery',
+      },
+
+      {
+        id:
+          'natural-death-eight-months',
+
+        title:
+          'Natural Death Assistance',
+
+        subtitle:
+          '8 Months Contestability',
+
+        amount:
+          '₱50,000 Cash',
+
+        grocery:
+          '₱10,000 Grocery',
+      },
+
+      {
+        id:
+          'hospitalization',
+
+        title:
+          'Hospitalization Assistance',
+
+        subtitle:
+          'Qualified hospital confinement',
+
+        amount:
+          '₱3,000 per day for 7 days',
+
+        grocery:
+          'Laboratory and medicine assistance',
+      },
+    ];
+
+    /* =====================================================
+       REMINDERS
+    ===================================================== */
+
+    const reminders = [
+      {
+        id:
+          'non-transferable',
+
+        text:
+          'This membership ID is non-transferable.',
+      },
+
+      {
+        id:
+          'present-id',
+
+        text:
+          'Present this ID when availing of Legacy Care benefits and assistance.',
+      },
+
+      {
+        id:
+          'report-loss',
+
+        text:
+          'Report any loss, theft, damage, or unauthorized use of this card immediately.',
+      },
+
+      {
+        id:
+          'terms',
+
+        text:
+          'Benefits are subject to Legacy Care terms, eligibility requirements, verification, and approved claim procedures.',
+      },
+    ];
+
+    /* =====================================================
+       VERIFICATION
+    ===================================================== */
+
+    const verificationUrl =
+      `https://legacycare.ph/verify?membershipId=${encodeURIComponent(
+        member.membershipId,
+      )}`;
+
+    /* =====================================================
+       RESPONSE
+    ===================================================== */
+
+    return {
+      digitalId: {
+        member:
+          digitalIdMember,
+      },
+
+      branding: {
+        organizationName:
+          ORGANIZATION.name,
+
+        serviceName:
+          ORGANIZATION.serviceName,
+
+        tagline:
+          ORGANIZATION.tagline,
+
+        logo:
+          ORGANIZATION.logo,
+
+        shield:
+          ORGANIZATION.shield,
+      },
+
+      benefits,
+
+      beneficiaries,
+
+      reminders,
+
+      contact: {
+        officeAddress:
+          ORGANIZATION.address,
+
+        contactPerson:
+          fullName,
+
+        contactNumber:
+          member.phone,
+
+        website:
+          ORGANIZATION.website,
+
+        email:
+          ORGANIZATION.email,
+      },
+
+      validity: {
+        activationDate:
+          this.formatDate(
+            member.activatedAt ??
+              validityStart,
+          ),
+
+        expirationDate:
+          this.formatDate(
+            expirationDate,
+          ),
+
+        membershipId:
+          member.membershipId,
+
+        membershipLevel,
+
+        membershipStatus,
+      },
+
+      verification: {
+        qrCode:
+          null,
+
+        verificationCode:
+          member.membershipId,
+
+        verificationUrl,
+      },
+
+      fallbackMemberPhoto:
+        DEFAULT_MEMBER_PHOTO,
+    };
+  }
+
+  /* =======================================================
+     BUILD FULL NAME
+  ======================================================= */
+
+  private buildFullName(
+    firstName: string,
+    middleName: string | null,
+    lastName: string,
+  ): string {
+    return [
+      firstName,
+      middleName,
+      lastName,
+    ]
+      .filter(
+        (
+          value,
+        ): value is string =>
+          Boolean(
+            value?.trim(),
+          ),
+      )
+      .join(' ');
+  }
+
+  /* =======================================================
+     CALCULATE EXPIRATION
+  ======================================================= */
+
+  private calculateExpirationDate(
+    startDate: Date,
+  ): Date {
+    const expirationDate =
+      new Date(
+        startDate,
+      );
+
+    expirationDate.setFullYear(
+      expirationDate.getFullYear() +
+        DIGITAL_ID_VALIDITY_YEARS,
+    );
+
+    return expirationDate;
+  }
+
+  /* =======================================================
+     FORMAT DATE
+  ======================================================= */
+
+  private formatDate(
+    value?: Date | null,
+  ): string | null {
+    if (!value) {
+      return null;
+    }
+
+    return value
+      .toISOString()
+      .slice(
+        0,
+        10,
+      );
+  }
+}
