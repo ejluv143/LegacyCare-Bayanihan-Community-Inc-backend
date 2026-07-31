@@ -32,3 +32,7 @@ CREATE TABLE `members` (
 
 -- AddForeignKey
 ALTER TABLE `members` ADD CONSTRAINT `members_sponsor_id_fkey` FOREIGN KEY (`sponsor_id`) REFERENCES `members`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE `members`
+  ADD COLUMN `address` TEXT NULL,
+  ADD COLUMN `date_of_birth` DATE NULL;
