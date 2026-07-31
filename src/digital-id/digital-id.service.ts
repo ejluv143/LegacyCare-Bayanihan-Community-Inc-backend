@@ -69,425 +69,585 @@ export class DigitalIdService {
   async getDigitalId(
     memberId: string,
   ): Promise<DigitalIdResponse> {
-    const member =
-      await this.prisma.member.findUnique({
-        where: {
-          id: memberId,
-        },
+    console.log(
+      '========================================',
+    );
 
-        include: {
-          beneficiaries: {
-            orderBy: {
-              sequence:
-                'asc',
+    console.log(
+      '[DigitalIdService] Request received',
+    );
+
+    console.log(
+      '[DigitalIdService] memberId:',
+      memberId,
+    );
+
+    try {
+      /* ===================================================
+         QUERY MEMBER
+      =================================================== */
+
+      console.log(
+        '[DigitalIdService] Querying member...',
+      );
+
+      const member =
+        await this.prisma.member.findUnique({
+          where: {
+            id:
+              memberId,
+          },
+
+          include: {
+            beneficiaries: {
+              orderBy: {
+                sequence:
+                  'asc',
+              },
             },
           },
+        });
+
+      console.log(
+        '[DigitalIdService] Query completed.',
+      );
+
+      console.log(
+        '[DigitalIdService] Member found:',
+        Boolean(member),
+      );
+
+      if (!member) {
+        throw new NotFoundException(
+          'Member account not found.',
+        );
+      }
+
+      console.log(
+        '[DigitalIdService] Member summary:',
+        {
+          id:
+            member.id,
+
+          membershipId:
+            member.membershipId,
+
+          username:
+            member.username,
+
+          membershipType:
+            member.membershipType,
+
+          status:
+            member.status,
+
+          beneficiaryCount:
+            member.beneficiaries.length,
         },
-      });
-
-    if (!member) {
-      throw new NotFoundException(
-        'Member account not found.',
-      );
-    }
-
-    /* =====================================================
-       MEMBER NAME
-    ===================================================== */
-
-    const fullName =
-      this.buildFullName(
-        member.firstName,
-        member.middleName,
-        member.lastName,
       );
 
-    /* =====================================================
-       MEMBERSHIP
-    ===================================================== */
+      /* ===================================================
+         MEMBER NAME
+      =================================================== */
 
-    const membershipLevel =
-      mapMembershipType(
-        member.membershipType,
+      console.log(
+        '[DigitalIdService] Building member name...',
       );
 
-    const membershipStatus =
-      mapMemberStatus(
-        member.status,
+      const fullName =
+        this.buildFullName(
+          member.firstName,
+          member.middleName,
+          member.lastName,
+        );
+
+      console.log(
+        '[DigitalIdService] fullName:',
+        fullName,
       );
 
-    /* =====================================================
-       VALIDITY
-    ===================================================== */
+      /* ===================================================
+         MEMBERSHIP
+      =================================================== */
 
-    const validityStart =
-      member.activatedAt ??
-      member.memberSince ??
-      member.createdAt;
+      console.log(
+        '[DigitalIdService] Mapping membership...',
+      );
 
-    const expirationDate =
-      this.calculateExpirationDate(
+      const membershipLevel =
+        mapMembershipType(
+          member.membershipType,
+        );
+
+      const membershipStatus =
+        mapMemberStatus(
+          member.status,
+        );
+
+      console.log(
+        '[DigitalIdService] membership:',
+        {
+          membershipLevel,
+          membershipStatus,
+        },
+      );
+
+      /* ===================================================
+         VALIDITY
+      =================================================== */
+
+      const validityStart =
+        member.activatedAt ??
+        member.memberSince ??
+        member.createdAt;
+
+      console.log(
+        '[DigitalIdService] validityStart:',
         validityStart,
       );
 
-    /* =====================================================
-       MEMBER RESPONSE
-    ===================================================== */
-
-    const digitalIdMember = {
-      id:
-        member.id,
-
-      firstName:
-        member.firstName,
-
-      middleName:
-        member.middleName,
-
-      lastName:
-        member.lastName,
-
-      fullName,
-
-      birthDate:
-        this.formatDate(
-          member.dateOfBirth,
-        ),
-
-      address:
-        member.address,
-
-      /*
-       * Your current Member model stores the
-       * member address as one text field.
-       */
-      city:
-        null,
-
-      province:
-        null,
-
-      postalCode:
-        null,
-
-      mobileNumber:
-        member.phone,
-
-      email:
-        member.email,
-
-      /*
-       * There is currently no profilePhoto
-       * field in the Member model.
-       */
-      profilePhoto:
-        null,
-
-      /*
-       * QR is generated/displayed by the frontend
-       * using verification information for now.
-       */
-      qrCode:
-        null,
-
-      membership: {
-        membershipId:
-          member.membershipId,
-
-        level:
-          membershipLevel,
-
-        status:
-          membershipStatus,
-
-        activationDate:
-          this.formatDate(
-            member.activatedAt ??
-              validityStart,
-          ),
-
-        expirationDate:
-          this.formatDate(
-            expirationDate,
-          ),
-      },
-    };
-
-    /* =====================================================
-       BENEFICIARIES
-    ===================================================== */
-
-    const beneficiaries =
-      member.beneficiaries
-        .filter(
-          (beneficiary) =>
-            beneficiary.sequence >=
-              1 &&
-            beneficiary.sequence <=
-              5,
-        )
-        .map(
-          (beneficiary) => ({
-            id:
-              beneficiary.id,
-
-            position:
-              beneficiary.sequence as
-                | 1
-                | 2
-                | 3
-                | 4
-                | 5,
-
-            firstName:
-              beneficiary.firstName,
-
-            middleName:
-              beneficiary.middleName,
-
-            lastName:
-              beneficiary.lastName,
-
-            fullName:
-              this.buildFullName(
-                beneficiary.firstName,
-                beneficiary.middleName,
-                beneficiary.lastName,
-              ),
-
-            relationship:
-              beneficiary.relationship,
-
-            /*
-             * Beneficiary currently has no
-             * dateOfBirth field in Prisma.
-             */
-            birthDate:
-              null,
-          }),
+      const expirationDate =
+        this.calculateExpirationDate(
+          validityStart,
         );
 
-    /* =====================================================
-       BENEFITS
-    ===================================================== */
+      console.log(
+        '[DigitalIdService] expirationDate:',
+        expirationDate,
+      );
 
-    const benefits = [
-      {
+      /* ===================================================
+         MEMBER RESPONSE
+      =================================================== */
+
+      const digitalIdMember = {
         id:
-          'accidental-death-24-hours',
+          member.id,
 
-        title:
-          'Accidental Death Assistance',
+        firstName:
+          member.firstName,
 
-        subtitle:
-          'After 24 Hours',
+        middleName:
+          member.middleName,
 
-        amount:
-          '₱25,000 Cash',
+        lastName:
+          member.lastName,
 
-        grocery:
-          '₱5,000 Grocery',
-      },
+        fullName,
 
-      {
-        id:
-          'accidental-death-six-months',
+        birthDate:
+          this.formatDate(
+            member.dateOfBirth,
+          ),
 
-        title:
-          'Accidental Death Assistance',
+        address:
+          member.address,
 
-        subtitle:
-          '6 Months Contestability',
+        /*
+         * Member currently stores its address
+         * as one text field.
+         */
+        city:
+          null,
 
-        amount:
-          '₱50,000 Cash',
+        province:
+          null,
 
-        grocery:
-          '₱10,000 Grocery',
-      },
+        postalCode:
+          null,
 
-      {
-        id:
-          'natural-death-four-months',
-
-        title:
-          'Natural Death Assistance',
-
-        subtitle:
-          '4 Months Contestability',
-
-        amount:
-          '₱25,000 Cash',
-
-        grocery:
-          '₱5,000 Grocery',
-      },
-
-      {
-        id:
-          'natural-death-eight-months',
-
-        title:
-          'Natural Death Assistance',
-
-        subtitle:
-          '8 Months Contestability',
-
-        amount:
-          '₱50,000 Cash',
-
-        grocery:
-          '₱10,000 Grocery',
-      },
-
-      {
-        id:
-          'hospitalization',
-
-        title:
-          'Hospitalization Assistance',
-
-        subtitle:
-          'Qualified hospital confinement',
-
-        amount:
-          '₱3,000 per day for 7 days',
-
-        grocery:
-          'Laboratory and medicine assistance',
-      },
-    ];
-
-    /* =====================================================
-       REMINDERS
-    ===================================================== */
-
-    const reminders = [
-      {
-        id:
-          'non-transferable',
-
-        text:
-          'This membership ID is non-transferable.',
-      },
-
-      {
-        id:
-          'present-id',
-
-        text:
-          'Present this ID when availing of Legacy Care benefits and assistance.',
-      },
-
-      {
-        id:
-          'report-loss',
-
-        text:
-          'Report any loss, theft, damage, or unauthorized use of this card immediately.',
-      },
-
-      {
-        id:
-          'terms',
-
-        text:
-          'Benefits are subject to Legacy Care terms, eligibility requirements, verification, and approved claim procedures.',
-      },
-    ];
-
-    /* =====================================================
-       VERIFICATION
-    ===================================================== */
-
-    const verificationUrl =
-      `https://legacycare.ph/verify?membershipId=${encodeURIComponent(
-        member.membershipId,
-      )}`;
-
-    /* =====================================================
-       RESPONSE
-    ===================================================== */
-
-    return {
-      digitalId: {
-        member:
-          digitalIdMember,
-      },
-
-      branding: {
-        organizationName:
-          ORGANIZATION.name,
-
-        serviceName:
-          ORGANIZATION.serviceName,
-
-        tagline:
-          ORGANIZATION.tagline,
-
-        logo:
-          ORGANIZATION.logo,
-
-        shield:
-          ORGANIZATION.shield,
-      },
-
-      benefits,
-
-      beneficiaries,
-
-      reminders,
-
-      contact: {
-        officeAddress:
-          ORGANIZATION.address,
-
-        contactPerson:
-          fullName,
-
-        contactNumber:
+        mobileNumber:
           member.phone,
 
-        website:
-          ORGANIZATION.website,
-
         email:
-          ORGANIZATION.email,
-      },
+          member.email,
 
-      validity: {
-        activationDate:
-          this.formatDate(
-            member.activatedAt ??
-              validityStart,
-          ),
+        /*
+         * Member currently has no profile photo
+         * field in Prisma.
+         */
+        profilePhoto:
+          null,
 
-        expirationDate:
-          this.formatDate(
-            expirationDate,
-          ),
-
-        membershipId:
-          member.membershipId,
-
-        membershipLevel,
-
-        membershipStatus,
-      },
-
-      verification: {
+        /*
+         * QR image can be added later.
+         */
         qrCode:
           null,
 
-        verificationCode:
+        membership: {
+          membershipId:
+            member.membershipId,
+
+          level:
+            membershipLevel,
+
+          status:
+            membershipStatus,
+
+          activationDate:
+            this.formatDate(
+              member.activatedAt ??
+                validityStart,
+            ),
+
+          expirationDate:
+            this.formatDate(
+              expirationDate,
+            ),
+        },
+      };
+
+      console.log(
+        '[DigitalIdService] Member response created.',
+      );
+
+      /* ===================================================
+         BENEFICIARIES
+      =================================================== */
+
+      console.log(
+        '[DigitalIdService] Mapping beneficiaries...',
+      );
+
+      const beneficiaries =
+        member.beneficiaries
+          .filter(
+            (
+              beneficiary,
+            ) =>
+              beneficiary.sequence >=
+                1 &&
+              beneficiary.sequence <=
+                5,
+          )
+          .map(
+            (
+              beneficiary,
+            ) => ({
+              id:
+                beneficiary.id,
+
+              position:
+                beneficiary.sequence as
+                  | 1
+                  | 2
+                  | 3
+                  | 4
+                  | 5,
+
+              firstName:
+                beneficiary.firstName,
+
+              middleName:
+                beneficiary.middleName,
+
+              lastName:
+                beneficiary.lastName,
+
+              fullName:
+                this.buildFullName(
+                  beneficiary.firstName,
+                  beneficiary.middleName,
+                  beneficiary.lastName,
+                ),
+
+              relationship:
+                beneficiary.relationship,
+
+              /*
+               * Beneficiary currently has no
+               * dateOfBirth field in Prisma.
+               */
+              birthDate:
+                null,
+            }),
+          );
+
+      console.log(
+        '[DigitalIdService] Beneficiaries mapped:',
+        beneficiaries.length,
+      );
+
+      /* ===================================================
+         BENEFITS
+      =================================================== */
+
+      const benefits = [
+        {
+          id:
+            'accidental-death-24-hours',
+
+          title:
+            'Accidental Death Assistance',
+
+          subtitle:
+            'After 24 Hours',
+
+          amount:
+            '₱25,000 Cash',
+
+          grocery:
+            '₱5,000 Grocery',
+        },
+
+        {
+          id:
+            'accidental-death-six-months',
+
+          title:
+            'Accidental Death Assistance',
+
+          subtitle:
+            '6 Months Contestability',
+
+          amount:
+            '₱50,000 Cash',
+
+          grocery:
+            '₱10,000 Grocery',
+        },
+
+        {
+          id:
+            'natural-death-four-months',
+
+          title:
+            'Natural Death Assistance',
+
+          subtitle:
+            '4 Months Contestability',
+
+          amount:
+            '₱25,000 Cash',
+
+          grocery:
+            '₱5,000 Grocery',
+        },
+
+        {
+          id:
+            'natural-death-eight-months',
+
+          title:
+            'Natural Death Assistance',
+
+          subtitle:
+            '8 Months Contestability',
+
+          amount:
+            '₱50,000 Cash',
+
+          grocery:
+            '₱10,000 Grocery',
+        },
+
+        {
+          id:
+            'hospitalization',
+
+          title:
+            'Hospitalization Assistance',
+
+          subtitle:
+            'Qualified hospital confinement',
+
+          amount:
+            '₱3,000 per day for 7 days',
+
+          grocery:
+            'Laboratory and medicine assistance',
+        },
+      ];
+
+      /* ===================================================
+         REMINDERS
+      =================================================== */
+
+      const reminders = [
+        {
+          id:
+            'non-transferable',
+
+          text:
+            'This membership ID is non-transferable.',
+        },
+
+        {
+          id:
+            'present-id',
+
+          text:
+            'Present this ID when availing of Legacy Care benefits and assistance.',
+        },
+
+        {
+          id:
+            'report-loss',
+
+          text:
+            'Report any loss, theft, damage, or unauthorized use of this card immediately.',
+        },
+
+        {
+          id:
+            'terms',
+
+          text:
+            'Benefits are subject to Legacy Care terms, eligibility requirements, verification, and approved claim procedures.',
+        },
+      ];
+
+      /* ===================================================
+         VERIFICATION
+      =================================================== */
+
+      const verificationUrl =
+        `https://legacycare.ph/verify?membershipId=${encodeURIComponent(
           member.membershipId,
+        )}`;
 
-        verificationUrl,
-      },
+      /* ===================================================
+         RESPONSE
+      =================================================== */
 
-      fallbackMemberPhoto:
-        DEFAULT_MEMBER_PHOTO,
-    };
+      const response:
+        DigitalIdResponse = {
+        digitalId: {
+          member:
+            digitalIdMember,
+        },
+
+        branding: {
+          organizationName:
+            ORGANIZATION.name,
+
+          serviceName:
+            ORGANIZATION.serviceName,
+
+          tagline:
+            ORGANIZATION.tagline,
+
+          logo:
+            ORGANIZATION.logo,
+
+          shield:
+            ORGANIZATION.shield,
+        },
+
+        benefits,
+
+        beneficiaries,
+
+        reminders,
+
+        contact: {
+          officeAddress:
+            ORGANIZATION.address,
+
+          contactPerson:
+            fullName,
+
+          contactNumber:
+            member.phone,
+
+          website:
+            ORGANIZATION.website,
+
+          email:
+            ORGANIZATION.email,
+        },
+
+        validity: {
+          activationDate:
+            this.formatDate(
+              member.activatedAt ??
+                validityStart,
+            ),
+
+          expirationDate:
+            this.formatDate(
+              expirationDate,
+            ),
+
+          membershipId:
+            member.membershipId,
+
+          membershipLevel,
+
+          membershipStatus,
+        },
+
+        verification: {
+          qrCode:
+            null,
+
+          verificationCode:
+            member.membershipId,
+
+          verificationUrl,
+        },
+
+        fallbackMemberPhoto:
+          DEFAULT_MEMBER_PHOTO,
+      };
+
+      console.log(
+        '[DigitalIdService] Digital ID generated successfully.',
+      );
+
+      console.log(
+        '========================================',
+      );
+
+      return response;
+    } catch (
+      error: unknown
+    ) {
+      console.error(
+        '========================================',
+      );
+
+      console.error(
+        '[DigitalIdService] DIGITAL ID ERROR',
+      );
+
+      console.error(
+        '[DigitalIdService] memberId:',
+        memberId,
+      );
+
+      console.error(
+        '[DigitalIdService] raw error:',
+        error,
+      );
+
+      if (
+        error instanceof
+        Error
+      ) {
+        console.error(
+          '[DigitalIdService] error name:',
+          error.name,
+        );
+
+        console.error(
+          '[DigitalIdService] error message:',
+          error.message,
+        );
+
+        console.error(
+          '[DigitalIdService] error stack:',
+          error.stack,
+        );
+      }
+
+      console.error(
+        '========================================',
+      );
+
+      throw error;
+    }
   }
 
   /* =======================================================
