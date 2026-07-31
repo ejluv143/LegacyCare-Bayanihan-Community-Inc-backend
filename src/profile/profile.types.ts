@@ -95,6 +95,16 @@ export interface ProfileResponse {
 }
 
 /* =========================================================
+   PROFILE CREDENTIALS RESPONSE
+========================================================= */
+
+export interface ProfileCredentialsResponse {
+  username: string;
+
+  message: string;
+}
+
+/* =========================================================
    MEMBERSHIP TYPE MAPPER
 ========================================================= */
 

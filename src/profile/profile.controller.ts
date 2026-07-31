@@ -16,6 +16,10 @@ import {
 } from '../auth/guards/jwt-auth.guard';
 
 import {
+  UpdateProfileCredentialsDto,
+} from './dto/update-profile-credentials.dto';
+
+import {
   UpdateProfileDto,
 } from './dto/update-profile.dto';
 
@@ -24,6 +28,7 @@ import {
 } from './profile.service';
 
 import type {
+  ProfileCredentialsResponse,
   ProfileResponse,
 } from './profile.types';
 
@@ -87,6 +92,26 @@ export class ProfileController {
     dto: UpdateProfileDto,
   ): Promise<ProfileResponse> {
     return this.profileService.updateProfile(
+      request.user.sub,
+      dto,
+    );
+  }
+
+  /* =======================================================
+     UPDATE LOGIN CREDENTIALS
+
+     PATCH /api/member/profile/credentials
+  ======================================================= */
+
+  @Patch('credentials')
+  updateCredentials(
+    @Req()
+    request: AuthenticatedRequest,
+
+    @Body()
+    dto: UpdateProfileCredentialsDto,
+  ): Promise<ProfileCredentialsResponse> {
+    return this.profileService.updateCredentials(
       request.user.sub,
       dto,
     );
