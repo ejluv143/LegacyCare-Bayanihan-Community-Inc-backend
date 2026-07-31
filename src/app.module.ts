@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { BeneficiaryModule } from './beneficiary/beneficiary.module';
 import { DigitalIdModule } from './digital-id/digital-id.module';
 import { MemberDashboardModule } from './member/member-dashboard.module';
+import { ProfileModule } from './profile/profile.module';
 
 @Module({
   imports: [
@@ -26,6 +27,8 @@ import { MemberDashboardModule } from './member/member-dashboard.module';
     MemberDashboardModule,
 
     DigitalIdModule,
+
+    ProfileModule,
   ],
 
   controllers: [
