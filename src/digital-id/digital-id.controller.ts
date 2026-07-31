@@ -17,6 +17,10 @@ import {
   DigitalIdService,
 } from './digital-id.service';
 
+import type {
+  DigitalIdResponse,
+} from './digital-id.types';
+
 /* =========================================================
    AUTHENTICATED REQUEST
 ========================================================= */
@@ -52,7 +56,7 @@ export class DigitalIdController {
   getDigitalId(
     @Req()
     request: AuthenticatedRequest,
-  ) {
+  ): Promise<DigitalIdResponse> {
     return this.digitalIdService.getDigitalId(
       request.user.sub,
     );

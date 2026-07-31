@@ -52,16 +52,6 @@ export interface DigitalIdMemberResponse {
 
   fullName: string;
 
-  birthDate: string | null;
-
-  address: string | null;
-
-  city: string | null;
-
-  province: string | null;
-
-  postalCode: string | null;
-
   mobileNumber: string;
 
   email: string | null;
@@ -74,12 +64,23 @@ export interface DigitalIdMemberResponse {
 }
 
 /* =========================================================
-   DIGITAL ID
+   DIGITAL ID DATA
 ========================================================= */
 
 export interface DigitalIdDataResponse {
   member: DigitalIdMemberResponse;
 }
+
+/* =========================================================
+   BENEFICIARY POSITION
+========================================================= */
+
+export type DigitalIdBeneficiaryPosition =
+  | 1
+  | 2
+  | 3
+  | 4
+  | 5;
 
 /* =========================================================
    BENEFICIARY
@@ -88,12 +89,7 @@ export interface DigitalIdDataResponse {
 export interface DigitalIdBeneficiaryResponse {
   id: string;
 
-  position:
-    | 1
-    | 2
-    | 3
-    | 4
-    | 5;
+  position: DigitalIdBeneficiaryPosition;
 
   firstName: string;
 
@@ -105,7 +101,7 @@ export interface DigitalIdBeneficiaryResponse {
 
   relationship: string;
 
-  birthDate: string | null;
+  address: string | null;
 }
 
 /* =========================================================
