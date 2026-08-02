@@ -31,9 +31,10 @@ export class AdminDashboardService {
   async getMemberTotals():
     Promise<AdminMemberTotalsResponse> {
     const [
-      totalMembers,
+      registeredMembers,
       basicMembers,
       premiumMembers,
+      totalBeneficiaries,
     ] = await Promise.all([
       this.prisma.member.count(),
 
@@ -50,20 +51,30 @@ export class AdminDashboardService {
             MembershipType.PREMIUM,
         },
       }),
+
+      this.prisma.beneficiary.count(),
     ]);
+
+    const totalMembers =
+      registeredMembers +
+      totalBeneficiaries;
 
     return {
       success: true,
 
       message:
-        "Member totals retrieved successfully.",
+        "Member and beneficiary totals retrieved successfully.",
 
       data: {
         totalMembers,
 
+        registeredMembers,
+
         basicMembers,
 
         premiumMembers,
+
+        totalBeneficiaries,
       },
     };
   }
@@ -75,12 +86,15 @@ export class AdminDashboardService {
   async getOverview():
     Promise<AdminDashboardOverviewResponse> {
     const [
-      totalMembers,
+      registeredMembers,
+      totalBeneficiaries,
       activeMembers,
       pendingMembers,
       suspendedMembers,
     ] = await Promise.all([
       this.prisma.member.count(),
+
+      this.prisma.beneficiary.count(),
 
       this.prisma.member.count({
         where: {
@@ -104,6 +118,10 @@ export class AdminDashboardService {
       }),
     ]);
 
+    const totalMembers =
+      registeredMembers +
+      totalBeneficiaries;
+
     return {
       success: true,
 
@@ -112,6 +130,10 @@ export class AdminDashboardService {
 
       data: {
         totalMembers,
+
+        registeredMembers,
+
+        totalBeneficiaries,
 
         activeMembers,
 
@@ -145,8 +167,7 @@ export class AdminDashboardService {
         take: 10,
 
         orderBy: {
-          createdAt:
-            "desc",
+          createdAt: "desc",
         },
 
         select: {

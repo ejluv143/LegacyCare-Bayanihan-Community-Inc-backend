@@ -5,9 +5,13 @@
 export interface AdminMemberTotals {
   totalMembers: number;
 
+  registeredMembers: number;
+
   basicMembers: number;
 
   premiumMembers: number;
+
+  totalBeneficiaries: number;
 }
 
 /* =========================================================
@@ -28,6 +32,10 @@ export interface AdminMemberTotalsResponse {
 
 export interface AdminDashboardOverview {
   totalMembers: number;
+
+  registeredMembers: number;
+
+  totalBeneficiaries: number;
 
   activeMembers: number;
 
@@ -112,6 +120,10 @@ export interface AdminDashboardMemberGrowth {
   basicMembers: number;
 
   premiumMembers: number;
+
+  registeredMembers: number;
+
+  totalBeneficiaries: number;
 
   totalMembers: number;
 }
