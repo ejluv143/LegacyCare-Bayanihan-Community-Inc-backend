@@ -3,9 +3,9 @@ import { Injectable } from "@nestjs/common";
 import {
   MemberStatus,
   MembershipType,
-} from "../../generated/prisma/client";
+} from "../../../generated/prisma/client";
 
-import { PrismaService } from "../database/prisma/prisma.service";
+import { PrismaService } from "../../database/prisma/prisma.service";
 
 import type {
   AdminDashboardMemberGrowthResponse,

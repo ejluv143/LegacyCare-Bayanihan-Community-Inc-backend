@@ -4,8 +4,9 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
 import { AdminCodesModule } from './codes/admin-codes.module';
-import { AdminDashboardModule } from './dashboard/admin-dashboard.module';
+import { AdminDashboardModule } from './dashboard/dto/admin-dashboard.module';
 import { DatabaseModule } from './database/database.module';
+import { AdminGenealogyModule } from './genealogy/dto/admin-genealogy.module';
 import { AdminSatellitesModule } from './satellites/admin-satellites.module';
 
 @Module({
@@ -14,9 +15,11 @@ import { AdminSatellitesModule } from './satellites/admin-satellites.module';
 
     AdminCodesModule,
 
-    AdminSatellitesModule,
-
     AdminDashboardModule,
+
+    AdminGenealogyModule,
+
+    AdminSatellitesModule,
   ],
 
   controllers: [
