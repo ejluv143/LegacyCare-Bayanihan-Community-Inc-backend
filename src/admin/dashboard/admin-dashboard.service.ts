@@ -33,6 +33,7 @@ export class AdminDashboardService {
     const [
       totalMembers,
       basicMembers,
+      premiumMembers,
     ] = await Promise.all([
       this.prisma.member.count(),
 
@@ -40,6 +41,13 @@ export class AdminDashboardService {
         where: {
           membershipType:
             MembershipType.BASIC,
+        },
+      }),
+
+      this.prisma.member.count({
+        where: {
+          membershipType:
+            MembershipType.PREMIUM,
         },
       }),
     ]);
@@ -55,12 +63,7 @@ export class AdminDashboardService {
 
         basicMembers,
 
-        /*
-         * PREMIUM is not currently
-         * available in the Prisma schema.
-         * Keep the field for frontend compatibility.
-         */
-        premiumMembers: 0,
+        premiumMembers,
       },
     };
   }
@@ -142,7 +145,8 @@ export class AdminDashboardService {
         take: 10,
 
         orderBy: {
-          createdAt: "desc",
+          createdAt:
+            "desc",
         },
 
         select: {
