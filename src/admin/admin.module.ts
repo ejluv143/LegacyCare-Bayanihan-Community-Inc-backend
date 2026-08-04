@@ -8,6 +8,7 @@ import { AdminDashboardModule } from './dashboard/dto/admin-dashboard.module';
 import { DatabaseModule } from './database/database.module';
 import { AdminGenealogyModule } from './genealogy/dto/admin-genealogy.module';
 import { AdminSatellitesModule } from './satellites/admin-satellites.module';
+import { AdminCodeDistributionModule } from './code-distribution/admin-code-distribution.module';
 
 @Module({
   imports: [
@@ -20,6 +21,8 @@ import { AdminSatellitesModule } from './satellites/admin-satellites.module';
     AdminGenealogyModule,
 
     AdminSatellitesModule,
+
+    AdminCodeDistributionModule,
   ],
 
   controllers: [
