@@ -1,25 +1,17 @@
-import {
-  MemberStatus,
-  MembershipType,
-} from '../generated/prisma/client';
+import { MemberStatus, MembershipType } from '../generated/prisma/client';
 
 /* =========================================================
    MEMBERSHIP LEVEL
 ========================================================= */
 
-export type DigitalIdMembershipLevel =
-  | 'standard'
-  | 'premium';
+export type DigitalIdMembershipLevel = 'basic' | 'premium';
 
 /* =========================================================
    MEMBERSHIP STATUS
 ========================================================= */
 
 export type DigitalIdMembershipStatus =
-  | 'active'
-  | 'pending'
-  | 'suspended'
-  | 'inactive';
+  'active' | 'pending' | 'suspended' | 'inactive';
 
 /* =========================================================
    DIGITAL ID MEMBERSHIP
@@ -75,12 +67,7 @@ export interface DigitalIdDataResponse {
    BENEFICIARY POSITION
 ========================================================= */
 
-export type DigitalIdBeneficiaryPosition =
-  | 1
-  | 2
-  | 3
-  | 4
-  | 5;
+export type DigitalIdBeneficiaryPosition = 1 | 2 | 3 | 4 | 5;
 
 /* =========================================================
    BENEFICIARY
@@ -227,7 +214,7 @@ export function mapMembershipType(
 
     case MembershipType.BASIC:
     default:
-      return 'standard';
+      return 'basic';
   }
 }
 

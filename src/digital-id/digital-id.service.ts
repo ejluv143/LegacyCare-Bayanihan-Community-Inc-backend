@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { MembershipType } from '../generated/prisma/client';
 import { PrismaService } from '../admin/database/prisma/prisma.service';
 
 import { mapMemberStatus, mapMembershipType } from './digital-id.types';
 
 import type {
   DigitalIdBeneficiaryPosition,
+  DigitalIdBenefitResponse,
   DigitalIdResponse,
 } from './digital-id.types';
 
@@ -222,7 +224,7 @@ export class DigitalIdService {
        MEMBERSHIP BENEFITS
     ===================================================== */
 
-    const benefits = [
+    let benefits: DigitalIdBenefitResponse[] = [
       {
         id: 'accidental-death-24-hours',
 
@@ -282,6 +284,48 @@ export class DigitalIdService {
 
         grocery: 'Laboratory and medicine assistance',
       },
+    ];
+
+    benefits = [
+      {
+        id: 'accidental-death-24-hours',
+        title: 'Accidental Death Assistance',
+        subtitle: 'After 24 Hours',
+        amount: '₱30,000',
+      },
+      {
+        id: 'accidental-death-10-months',
+        title: 'Accidental Death Assistance',
+        subtitle: 'After 10 Months',
+        amount: '₱60,000',
+      },
+      {
+        id: 'natural-death-6-months',
+        title: 'Natural Death Assistance',
+        subtitle: 'After 6 Months of Membership',
+        amount: '₱30,000',
+      },
+      {
+        id: 'natural-death-10-months',
+        title: 'Natural Death Assistance',
+        subtitle: 'After 10 Months of Membership',
+        amount: '₱60,000',
+      },
+      member.membershipType === MembershipType.PREMIUM
+        ? {
+            id: 'premium-hospitalization',
+            title: 'Hospitalization Assistance',
+            subtitle: 'After 6 Months of Membership',
+            amount: '₱75,000 total • ₱4,000/day for 15 days',
+            grocery: 'Medicine ₱7,500 • Laboratory ₱7,500',
+          }
+        : {
+            id: 'basic-hospitalization',
+            title: 'Hospitalization Assistance',
+            subtitle: 'After 6 Months of Membership',
+            amount: '₱60,000 total • ₱3,000/day for 7 days',
+            grocery: 'Medicine ₱4,500 • Laboratory ₱4,500',
+          },
     ];
 
     /* =====================================================
