@@ -592,6 +592,10 @@ export class AdminCodesService {
 
     if (query.status) {
       where.status = toPrismaStatus(query.status);
+    } else {
+      where.status = {
+        not: PrismaGeneratedCodeStatus.USED,
+      };
     }
 
     if (query.activationType) {
