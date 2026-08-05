@@ -1,16 +1,8 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
-import {
-  PrismaService,
-} from '../admin/database/prisma/prisma.service';
+import { PrismaService } from '../admin/database/prisma/prisma.service';
 
-import {
-  mapMemberStatus,
-  mapMembershipType,
-} from './digital-id.types';
+import { mapMemberStatus, mapMembershipType } from './digital-id.types';
 
 import type {
   DigitalIdBeneficiaryPosition,
@@ -24,29 +16,21 @@ import type {
 const DIGITAL_ID_VALIDITY_YEARS = 2;
 
 const ORGANIZATION = {
-  name:
-    'Legacy Care Bayanihan Community Inc.',
+  name: 'Legacy Care Bayanihan Community Inc.',
 
-  serviceName:
-    'Social Welfare Services',
+  serviceName: 'Social Welfare Services',
 
-  tagline:
-    'Stronger Together. Protected Forever.',
+  tagline: 'Stronger Together. Protected Forever.',
 
-  logo:
-    '/logos/legacylogo.png',
+  logo: '/logos/legacylogo.png',
 
-  shield:
-    'https://api.iconify.design/mdi/shield-account.svg?color=%23064329',
+  shield: 'https://api.iconify.design/mdi/shield-account.svg?color=%23064329',
 
-  address:
-    'Purok 5, Barangay Poblacion, Valencia City, Bukidnon, 8709',
+  address: 'Purok 5, Barangay Poblacion, Valencia City, Bukidnon, 8709',
 
-  website:
-    'www.legacycare.ph',
+  website: 'www.legacycare.ph',
 
-  email:
-    'support@legacycare.ph',
+  email: 'support@legacycare.ph',
 } as const;
 
 const DEFAULT_MEMBER_PHOTO =
@@ -58,210 +42,149 @@ const DEFAULT_MEMBER_PHOTO =
 
 @Injectable()
 export class DigitalIdService {
-  constructor(
-    private readonly prisma:
-      PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /* =======================================================
      GET DIGITAL ID
   ======================================================= */
 
-  async getDigitalId(
-    memberId: string,
-  ): Promise<DigitalIdResponse> {
+  async getDigitalId(memberId: string): Promise<DigitalIdResponse> {
     /* =====================================================
        MEMBER + BENEFICIARIES
     ===================================================== */
 
-    const member =
-      await this.prisma.member.findUnique({
-        where: {
-          id: memberId,
-        },
+    const member = await this.prisma.member.findUnique({
+      where: {
+        id: memberId,
+      },
 
-        select: {
-          id:
-            true,
+      select: {
+        id: true,
 
-          membershipId:
-            true,
+        membershipId: true,
 
-          firstName:
-            true,
+        firstName: true,
 
-          middleName:
-            true,
+        middleName: true,
 
-          lastName:
-            true,
+        lastName: true,
 
-          email:
-            true,
+        email: true,
 
-          phone:
-            true,
+        phone: true,
 
-          membershipType:
-            true,
+        profilePhoto: true,
 
-          status:
-            true,
+        membershipType: true,
 
-          memberSince:
-            true,
+        status: true,
 
-          activatedAt:
-            true,
+        memberSince: true,
 
-          createdAt:
-            true,
+        activatedAt: true,
 
-          beneficiaries: {
-            select: {
-              id:
-                true,
+        createdAt: true,
 
-              sequence:
-                true,
+        beneficiaries: {
+          select: {
+            id: true,
 
-              firstName:
-                true,
+            sequence: true,
 
-              middleName:
-                true,
+            firstName: true,
 
-              lastName:
-                true,
+            middleName: true,
 
-              relationship:
-                true,
+            lastName: true,
 
-              address:
-                true,
-            },
+            relationship: true,
 
-            orderBy: {
-              sequence:
-                'asc',
-            },
+            address: true,
+          },
+
+          orderBy: {
+            sequence: 'asc',
           },
         },
-      });
+      },
+    });
 
     /* =====================================================
        MEMBER NOT FOUND
     ===================================================== */
 
     if (!member) {
-      throw new NotFoundException(
-        'Member account not found.',
-      );
+      throw new NotFoundException('Member account not found.');
     }
 
     /* =====================================================
        MEMBER NAME
     ===================================================== */
 
-    const fullName =
-      this.buildFullName(
-        member.firstName,
-        member.middleName,
-        member.lastName,
-      );
+    const fullName = this.buildFullName(
+      member.firstName,
+      member.middleName,
+      member.lastName,
+    );
 
     /* =====================================================
        MEMBERSHIP
     ===================================================== */
 
-    const membershipLevel =
-      mapMembershipType(
-        member.membershipType,
-      );
+    const membershipLevel = mapMembershipType(member.membershipType);
 
-    const membershipStatus =
-      mapMemberStatus(
-        member.status,
-      );
+    const membershipStatus = mapMemberStatus(member.status);
 
     /* =====================================================
        VALIDITY
     ===================================================== */
 
     const validityStart =
-      member.activatedAt ??
-      member.memberSince ??
-      member.createdAt;
+      member.activatedAt ?? member.memberSince ?? member.createdAt;
 
-    const expirationDate =
-      this.calculateExpirationDate(
-        validityStart,
-      );
+    const expirationDate = this.calculateExpirationDate(validityStart);
 
-    const activationDateString =
-      this.formatDate(
-        validityStart,
-      );
+    const activationDateString = this.formatDate(validityStart);
 
-    const expirationDateString =
-      this.formatDate(
-        expirationDate,
-      );
+    const expirationDateString = this.formatDate(expirationDate);
 
     /* =====================================================
        DIGITAL ID MEMBER
     ===================================================== */
 
     const digitalIdMember = {
-      id:
-        member.id,
+      id: member.id,
 
-      firstName:
-        member.firstName,
+      firstName: member.firstName,
 
-      middleName:
-        member.middleName,
+      middleName: member.middleName,
 
-      lastName:
-        member.lastName,
+      lastName: member.lastName,
 
       fullName,
 
-      mobileNumber:
-        member.phone,
+      mobileNumber: member.phone,
 
-      email:
-        member.email,
+      email: member.email,
 
-      /*
-       * No member profile-photo database
-       * field yet.
-       */
-      profilePhoto:
-        null,
+      profilePhoto: member.profilePhoto,
 
       /*
        * QR image generation can be added
        * later.
        */
-      qrCode:
-        null,
+      qrCode: null,
 
       membership: {
-        membershipId:
-          member.membershipId,
+        membershipId: member.membershipId,
 
-        level:
-          membershipLevel,
+        level: membershipLevel,
 
-        status:
-          membershipStatus,
+        status: membershipStatus,
 
-        activationDate:
-          activationDateString,
+        activationDate: activationDateString,
 
-        expirationDate:
-          expirationDateString,
+        expirationDate: expirationDateString,
       },
     };
 
@@ -269,51 +192,31 @@ export class DigitalIdService {
        BENEFICIARIES
     ===================================================== */
 
-    const beneficiaries =
-      member.beneficiaries
-        .filter(
-          (
-            beneficiary,
-          ) =>
-            beneficiary.sequence >=
-              1 &&
-            beneficiary.sequence <=
-              5,
-        )
-        .map(
-          (
-            beneficiary,
-          ) => ({
-            id:
-              beneficiary.id,
+    const beneficiaries = member.beneficiaries
+      .filter(
+        (beneficiary) => beneficiary.sequence >= 1 && beneficiary.sequence <= 5,
+      )
+      .map((beneficiary) => ({
+        id: beneficiary.id,
 
-            position:
-              beneficiary.sequence as
-                DigitalIdBeneficiaryPosition,
+        position: beneficiary.sequence as DigitalIdBeneficiaryPosition,
 
-            firstName:
-              beneficiary.firstName,
+        firstName: beneficiary.firstName,
 
-            middleName:
-              beneficiary.middleName,
+        middleName: beneficiary.middleName,
 
-            lastName:
-              beneficiary.lastName,
+        lastName: beneficiary.lastName,
 
-            fullName:
-              this.buildFullName(
-                beneficiary.firstName,
-                beneficiary.middleName,
-                beneficiary.lastName,
-              ),
+        fullName: this.buildFullName(
+          beneficiary.firstName,
+          beneficiary.middleName,
+          beneficiary.lastName,
+        ),
 
-            relationship:
-              beneficiary.relationship,
+        relationship: beneficiary.relationship,
 
-            address:
-              beneficiary.address,
-          }),
-        );
+        address: beneficiary.address,
+      }));
 
     /* =====================================================
        MEMBERSHIP BENEFITS
@@ -321,88 +224,63 @@ export class DigitalIdService {
 
     const benefits = [
       {
-        id:
-          'accidental-death-24-hours',
+        id: 'accidental-death-24-hours',
 
-        title:
-          'Accidental Death Assistance',
+        title: 'Accidental Death Assistance',
 
-        subtitle:
-          'After 24 Hours',
+        subtitle: 'After 24 Hours',
 
-        amount:
-          '₱25,000 Cash',
+        amount: '₱25,000 Cash',
 
-        grocery:
-          '₱5,000 Grocery',
+        grocery: '₱5,000 Grocery',
       },
 
       {
-        id:
-          'accidental-death-six-months',
+        id: 'accidental-death-six-months',
 
-        title:
-          'Accidental Death Assistance',
+        title: 'Accidental Death Assistance',
 
-        subtitle:
-          '6 Months Contestability',
+        subtitle: '6 Months Contestability',
 
-        amount:
-          '₱50,000 Cash',
+        amount: '₱50,000 Cash',
 
-        grocery:
-          '₱10,000 Grocery',
+        grocery: '₱10,000 Grocery',
       },
 
       {
-        id:
-          'natural-death-four-months',
+        id: 'natural-death-four-months',
 
-        title:
-          'Natural Death Assistance',
+        title: 'Natural Death Assistance',
 
-        subtitle:
-          '4 Months Contestability',
+        subtitle: '4 Months Contestability',
 
-        amount:
-          '₱25,000 Cash',
+        amount: '₱25,000 Cash',
 
-        grocery:
-          '₱5,000 Grocery',
+        grocery: '₱5,000 Grocery',
       },
 
       {
-        id:
-          'natural-death-eight-months',
+        id: 'natural-death-eight-months',
 
-        title:
-          'Natural Death Assistance',
+        title: 'Natural Death Assistance',
 
-        subtitle:
-          '8 Months Contestability',
+        subtitle: '8 Months Contestability',
 
-        amount:
-          '₱50,000 Cash',
+        amount: '₱50,000 Cash',
 
-        grocery:
-          '₱10,000 Grocery',
+        grocery: '₱10,000 Grocery',
       },
 
       {
-        id:
-          'hospitalization',
+        id: 'hospitalization',
 
-        title:
-          'Hospitalization Assistance',
+        title: 'Hospitalization Assistance',
 
-        subtitle:
-          'Qualified hospital confinement',
+        subtitle: 'Qualified hospital confinement',
 
-        amount:
-          '₱3,000 per day for 7 days',
+        amount: '₱3,000 per day for 7 days',
 
-        grocery:
-          'Laboratory and medicine assistance',
+        grocery: 'Laboratory and medicine assistance',
       },
     ];
 
@@ -412,35 +290,27 @@ export class DigitalIdService {
 
     const reminders = [
       {
-        id:
-          'non-transferable',
+        id: 'non-transferable',
 
-        text:
-          'This membership ID is non-transferable.',
+        text: 'This membership ID is non-transferable.',
       },
 
       {
-        id:
-          'present-id',
+        id: 'present-id',
 
-        text:
-          'Present this ID when availing of Legacy Care benefits and assistance.',
+        text: 'Present this ID when availing of Legacy Care benefits and assistance.',
       },
 
       {
-        id:
-          'report-loss',
+        id: 'report-loss',
 
-        text:
-          'Report any loss, theft, damage, or unauthorized use of this card immediately.',
+        text: 'Report any loss, theft, damage, or unauthorized use of this card immediately.',
       },
 
       {
-        id:
-          'terms',
+        id: 'terms',
 
-        text:
-          'Benefits are subject to Legacy Care terms, eligibility requirements, verification, and approved claim procedures.',
+        text: 'Benefits are subject to Legacy Care terms, eligibility requirements, verification, and approved claim procedures.',
       },
     ];
 
@@ -448,94 +318,75 @@ export class DigitalIdService {
        VERIFICATION
     ===================================================== */
 
-    const verificationUrl =
-      `https://legacycare.ph/verify?membershipId=${encodeURIComponent(
-        member.membershipId,
-      )}`;
+    const verificationUrl = `https://legacycare.ph/verify?membershipId=${encodeURIComponent(
+      member.membershipId,
+    )}`;
 
     /* =====================================================
        RESPONSE
     ===================================================== */
 
-    const response:
-      DigitalIdResponse = {
-        digitalId: {
-          member:
-            digitalIdMember,
-        },
+    const response: DigitalIdResponse = {
+      digitalId: {
+        member: digitalIdMember,
+      },
 
-        branding: {
-          organizationName:
-            ORGANIZATION.name,
+      branding: {
+        organizationName: ORGANIZATION.name,
 
-          serviceName:
-            ORGANIZATION.serviceName,
+        serviceName: ORGANIZATION.serviceName,
 
-          tagline:
-            ORGANIZATION.tagline,
+        tagline: ORGANIZATION.tagline,
 
-          logo:
-            ORGANIZATION.logo,
+        logo: ORGANIZATION.logo,
 
-          shield:
-            ORGANIZATION.shield,
-        },
+        shield: ORGANIZATION.shield,
+      },
 
-        benefits,
+      benefits,
 
-        beneficiaries,
+      beneficiaries,
 
-        reminders,
+      reminders,
 
-        contact: {
-          officeAddress:
-            ORGANIZATION.address,
+      contact: {
+        officeAddress: ORGANIZATION.address,
 
-          /*
-           * For the current card design,
-           * contact person is the member.
-           */
-          contactPerson:
-            fullName,
+        /*
+         * For the current card design,
+         * contact person is the member.
+         */
+        contactPerson: fullName,
 
-          contactNumber:
-            member.phone,
+        contactNumber: member.phone,
 
-          website:
-            ORGANIZATION.website,
+        website: ORGANIZATION.website,
 
-          email:
-            ORGANIZATION.email,
-        },
+        email: ORGANIZATION.email,
+      },
 
-        validity: {
-          activationDate:
-            activationDateString,
+      validity: {
+        activationDate: activationDateString,
 
-          expirationDate:
-            expirationDateString,
+        expirationDate: expirationDateString,
 
-          membershipId:
-            member.membershipId,
+        membershipId: member.membershipId,
 
-          membershipLevel,
+        membershipLevel,
 
-          membershipStatus,
-        },
+        membershipStatus,
+      },
 
-        verification: {
-          qrCode:
-            null,
+      verification: {
+        qrCode: null,
 
-          verificationCode:
-            member.membershipId,
+        verificationCode: member.membershipId,
 
-          verificationUrl,
-        },
+        verificationUrl,
+      },
 
-        fallbackMemberPhoto:
-          DEFAULT_MEMBER_PHOTO,
-      };
+      fallbackMemberPhoto: DEFAULT_MEMBER_PHOTO,
+    };
 
     return response;
   }
@@ -549,24 +400,12 @@ export class DigitalIdService {
     middleName: string | null,
     lastName: string,
   ): string {
-    return [
-      firstName,
-      middleName,
-      lastName,
-    ]
+    return [firstName, middleName, lastName]
       .filter(
-        (
-          value,
-        ): value is string =>
-          typeof value ===
-            'string' &&
-          value.trim().length >
-            0,
+        (value): value is string =>
+          typeof value === 'string' && value.trim().length > 0,
       )
-      .map(
-        (value) =>
-          value.trim(),
-      )
+      .map((value) => value.trim())
       .join(' ');
   }
 
@@ -574,17 +413,11 @@ export class DigitalIdService {
      CALCULATE EXPIRATION DATE
   ======================================================= */
 
-  private calculateExpirationDate(
-    startDate: Date,
-  ): Date {
-    const expirationDate =
-      new Date(
-        startDate,
-      );
+  private calculateExpirationDate(startDate: Date): Date {
+    const expirationDate = new Date(startDate);
 
     expirationDate.setFullYear(
-      expirationDate.getFullYear() +
-        DIGITAL_ID_VALIDITY_YEARS,
+      expirationDate.getFullYear() + DIGITAL_ID_VALIDITY_YEARS,
     );
 
     return expirationDate;
@@ -594,18 +427,11 @@ export class DigitalIdService {
      FORMAT DATE
   ======================================================= */
 
-  private formatDate(
-    value?: Date | null,
-  ): string | null {
+  private formatDate(value?: Date | null): string | null {
     if (!value) {
       return null;
     }
 
-    return value
-      .toISOString()
-      .slice(
-        0,
-        10,
-      );
+    return value.toISOString().slice(0, 10);
   }
 }

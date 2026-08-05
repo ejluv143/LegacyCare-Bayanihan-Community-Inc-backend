@@ -8,21 +8,13 @@ import {
 
 import * as argon2 from 'argon2';
 
-import {
-  Prisma,
-} from '../generated/prisma/client';
+import { Prisma } from '../generated/prisma/client';
 
-import {
-  PrismaService,
-} from '../admin/database/prisma/prisma.service';
+import { PrismaService } from '../admin/database/prisma/prisma.service';
 
-import {
-  UpdateProfileCredentialsDto,
-} from './dto/update-profile-credentials.dto';
+import { UpdateProfileCredentialsDto } from './dto/update-profile-credentials.dto';
 
-import {
-  UpdateProfileDto,
-} from './dto/update-profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 import type {
   ProfileCredentialsResponse,
@@ -55,6 +47,8 @@ const profileMemberSelect = {
 
   phone: true,
 
+  profilePhoto: true,
+
   address: true,
 
   dateOfBirth: true,
@@ -70,10 +64,9 @@ const profileMemberSelect = {
    PROFILE MEMBER TYPE
 ========================================================= */
 
-type ProfileMemberRecord =
-  Prisma.MemberGetPayload<{
-    select: typeof profileMemberSelect;
-  }>;
+type ProfileMemberRecord = Prisma.MemberGetPayload<{
+  select: typeof profileMemberSelect;
+}>;
 
 /* =========================================================
    SERVICE
@@ -81,10 +74,7 @@ type ProfileMemberRecord =
 
 @Injectable()
 export class ProfileService {
-  constructor(
-    private readonly prisma:
-      PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /* =======================================================
      GET PROFILE
@@ -92,28 +82,20 @@ export class ProfileService {
      GET /api/member/profile
   ======================================================= */
 
-  async getProfile(
-    memberId: string,
-  ): Promise<ProfileResponse> {
-    const member =
-      await this.prisma.member.findUnique({
-        where: {
-          id: memberId,
-        },
+  async getProfile(memberId: string): Promise<ProfileResponse> {
+    const member = await this.prisma.member.findUnique({
+      where: {
+        id: memberId,
+      },
 
-        select:
-          profileMemberSelect,
-      });
+      select: profileMemberSelect,
+    });
 
     if (!member) {
-      throw new NotFoundException(
-        'Member profile was not found.',
-      );
+      throw new NotFoundException('Member profile was not found.');
     }
 
-    return this.mapProfile(
-      member,
-    );
+    return this.mapProfile(member);
   }
 
   /* =======================================================
@@ -126,91 +108,71 @@ export class ProfileService {
     memberId: string,
     dto: UpdateProfileDto,
   ): Promise<ProfileResponse> {
-    const existingMember =
-      await this.prisma.member.findUnique({
-        where: {
-          id: memberId,
-        },
+    const existingMember = await this.prisma.member.findUnique({
+      where: {
+        id: memberId,
+      },
 
-        select: {
-          id: true,
-        },
-      });
+      select: {
+        id: true,
+      },
+    });
 
     if (!existingMember) {
-      throw new NotFoundException(
-        'Member profile was not found.',
-      );
+      throw new NotFoundException('Member profile was not found.');
     }
 
     /* =====================================================
        NORMALIZE VALUES
     ===================================================== */
 
-    const firstName =
-      dto.firstName.trim();
+    const firstName = dto.firstName.trim();
 
-    const middleName =
-      dto.middleName?.trim() ||
-      null;
+    const middleName = dto.middleName?.trim() || null;
 
-    const lastName =
-      dto.lastName.trim();
+    const lastName = dto.lastName.trim();
 
-    const address =
-      dto.address?.trim() ||
-      null;
+    const address = dto.address?.trim() || null;
 
-    const email =
-      dto.email?.trim() ||
-      null;
+    const email = dto.email?.trim() || null;
 
-    const phone =
-      dto.phone.trim();
+    const phone = dto.phone.trim();
 
-    const dateOfBirth =
-      this.parseDateOnly(
-        dto.dateOfBirth,
-      );
+    const dateOfBirth = this.parseDateOnly(dto.dateOfBirth);
 
     /* =====================================================
        UPDATE MEMBER
     ===================================================== */
 
     try {
-      const member =
-        await this.prisma.member.update({
-          where: {
-            id: memberId,
-          },
+      const member = await this.prisma.member.update({
+        where: {
+          id: memberId,
+        },
 
-          data: {
-            firstName,
+        data: {
+          firstName,
 
-            middleName,
+          middleName,
 
-            lastName,
+          lastName,
 
-            address,
+          address,
 
-            dateOfBirth,
+          dateOfBirth,
 
-            email,
+          email,
 
-            phone,
-          },
+          phone,
+        },
 
-          select:
-            profileMemberSelect,
-        });
+        select: profileMemberSelect,
+      });
 
-      return this.mapProfile(
-        member,
-      );
+      return this.mapProfile(member);
     } catch (error) {
       if (
-        error instanceof
-          Prisma.PrismaClientKnownRequestError &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
         throw new ConflictException(
@@ -220,6 +182,23 @@ export class ProfileService {
 
       throw error;
     }
+  }
+
+  async updateProfilePhoto(
+    memberId: string,
+    profilePhoto: string,
+  ): Promise<ProfileResponse> {
+    const member = await this.prisma.member.update({
+      where: {
+        id: memberId,
+      },
+      data: {
+        profilePhoto,
+      },
+      select: profileMemberSelect,
+    });
+
+    return this.mapProfile(member);
   }
 
   /* =======================================================
@@ -236,25 +215,22 @@ export class ProfileService {
        GET CURRENT ACCOUNT
     ===================================================== */
 
-    const member =
-      await this.prisma.member.findUnique({
-        where: {
-          id: memberId,
-        },
+    const member = await this.prisma.member.findUnique({
+      where: {
+        id: memberId,
+      },
 
-        select: {
-          id: true,
+      select: {
+        id: true,
 
-          username: true,
+        username: true,
 
-          passwordHash: true,
-        },
-      });
+        passwordHash: true,
+      },
+    });
 
     if (!member) {
-      throw new NotFoundException(
-        'Member account was not found.',
-      );
+      throw new NotFoundException('Member account was not found.');
     }
 
     if (!member.passwordHash) {
@@ -267,67 +243,49 @@ export class ProfileService {
        VERIFY CURRENT PASSWORD
     ===================================================== */
 
-    let passwordIsValid =
-      false;
+    let passwordIsValid = false;
 
     try {
-      passwordIsValid =
-        await argon2.verify(
-          member.passwordHash,
-          dto.currentPassword,
-        );
+      passwordIsValid = await argon2.verify(
+        member.passwordHash,
+        dto.currentPassword,
+      );
     } catch {
-      passwordIsValid =
-        false;
+      passwordIsValid = false;
     }
 
     if (!passwordIsValid) {
-      throw new UnauthorizedException(
-        'Current password is incorrect.',
-      );
+      throw new UnauthorizedException('Current password is incorrect.');
     }
 
     /* =====================================================
        NORMALIZE USERNAME
     ===================================================== */
 
-    const username =
-      dto.username.trim();
+    const username = dto.username.trim();
 
     if (!username) {
-      throw new BadRequestException(
-        'Username is required.',
-      );
+      throw new BadRequestException('Username is required.');
     }
 
     /* =====================================================
        CHECK WHETHER PASSWORD WILL CHANGE
     ===================================================== */
 
-    const newPassword =
-      dto.newPassword;
+    const newPassword = dto.newPassword;
 
-    const confirmPassword =
-      dto.confirmPassword;
+    const confirmPassword = dto.confirmPassword;
 
     const wantsPasswordChange =
-      newPassword.length > 0 ||
-      confirmPassword.length > 0;
+      newPassword.length > 0 || confirmPassword.length > 0;
 
-    if (
-      wantsPasswordChange &&
-      newPassword !==
-        confirmPassword
-    ) {
+    if (wantsPasswordChange && newPassword !== confirmPassword) {
       throw new BadRequestException(
         'New password and confirmation do not match.',
       );
     }
 
-    if (
-      wantsPasswordChange &&
-      newPassword.length < 6
-    ) {
+    if (wantsPasswordChange && newPassword.length < 6) {
       throw new BadRequestException(
         'New password must contain at least 6 characters.',
       );
@@ -337,41 +295,26 @@ export class ProfileService {
        CHECK IF ANYTHING ACTUALLY CHANGED
     ===================================================== */
 
-    const usernameChanged =
-      username !==
-      member.username;
+    const usernameChanged = username !== member.username;
 
-    if (
-      !usernameChanged &&
-      !wantsPasswordChange
-    ) {
-      throw new BadRequestException(
-        'No credential changes were provided.',
-      );
+    if (!usernameChanged && !wantsPasswordChange) {
+      throw new BadRequestException('No credential changes were provided.');
     }
 
     /* =====================================================
        HASH NEW PASSWORD
     ===================================================== */
 
-    let newPasswordHash:
-      string | undefined;
+    let newPasswordHash: string | undefined;
 
     if (wantsPasswordChange) {
-      newPasswordHash =
-        await argon2.hash(
-          newPassword,
-          {
-            memoryCost:
-              19456,
+      newPasswordHash = await argon2.hash(newPassword, {
+        memoryCost: 19456,
 
-            timeCost:
-              2,
+        timeCost: 2,
 
-            parallelism:
-              1,
-          },
-        );
+        parallelism: 1,
+      });
     }
 
     /* =====================================================
@@ -379,60 +322,44 @@ export class ProfileService {
     ===================================================== */
 
     try {
-      const updatedMember =
-        await this.prisma.member.update({
-          where: {
-            id: memberId,
-          },
+      const updatedMember = await this.prisma.member.update({
+        where: {
+          id: memberId,
+        },
 
-          data: {
-            username,
+        data: {
+          username,
 
-            passwordHash:
-              newPasswordHash,
-          },
+          passwordHash: newPasswordHash,
+        },
 
-          select: {
-            username:
-              true,
-          },
-        });
+        select: {
+          username: true,
+        },
+      });
 
       /* ===================================================
          RESPONSE
       =================================================== */
 
-      let message =
-        'Login credentials updated successfully.';
+      let message = 'Login credentials updated successfully.';
 
-      if (
-        usernameChanged &&
-        wantsPasswordChange
-      ) {
-        message =
-          'Username and password updated successfully.';
-      } else if (
-        usernameChanged
-      ) {
-        message =
-          'Username updated successfully.';
-      } else if (
-        wantsPasswordChange
-      ) {
-        message =
-          'Password updated successfully.';
+      if (usernameChanged && wantsPasswordChange) {
+        message = 'Username and password updated successfully.';
+      } else if (usernameChanged) {
+        message = 'Username updated successfully.';
+      } else if (wantsPasswordChange) {
+        message = 'Password updated successfully.';
       }
 
       return {
-        username:
-          updatedMember.username,
+        username: updatedMember.username,
 
         message,
       };
     } catch (error) {
       if (
-        error instanceof
-          Prisma.PrismaClientKnownRequestError &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
         throw new ConflictException(
@@ -448,73 +375,44 @@ export class ProfileService {
      MAP DATABASE MEMBER TO FRONTEND PROFILE
   ======================================================= */
 
-  private mapProfile(
-    member: ProfileMemberRecord,
-  ): ProfileResponse {
-    const fullName =
-      this.buildFullName(
-        member.firstName,
-        member.middleName,
-        member.lastName,
-      );
+  private mapProfile(member: ProfileMemberRecord): ProfileResponse {
+    const fullName = this.buildFullName(
+      member.firstName,
+      member.middleName,
+      member.lastName,
+    );
 
     return {
-      id:
-        member.id,
+      id: member.id,
 
-      firstName:
-        member.firstName,
+      firstName: member.firstName,
 
-      middleName:
-        member.middleName,
+      middleName: member.middleName,
 
-      lastName:
-        member.lastName,
+      lastName: member.lastName,
 
       fullName,
 
-      username:
-        member.username,
+      username: member.username,
 
-      address:
-        member.address,
+      address: member.address,
 
-      dateOfBirth:
-        this.formatDateOnly(
-          member.dateOfBirth,
-        ),
+      dateOfBirth: this.formatDateOnly(member.dateOfBirth),
 
-      email:
-        member.email,
+      email: member.email,
 
-      phone:
-        member.phone,
+      phone: member.phone,
 
-      /*
-       * No profile_photo column exists yet.
-       */
-
-      profilePhoto:
-        null,
+      profilePhoto: member.profilePhoto,
 
       membership: {
-        membershipId:
-          member.membershipId,
+        membershipId: member.membershipId,
 
-        membershipType:
-          mapProfileMembershipType(
-            member.membershipType,
-          ),
+        membershipType: mapProfileMembershipType(member.membershipType),
 
-        memberSince:
-          this.formatDateOnly(
-            member.memberSince,
-          ),
+        memberSince: this.formatDateOnly(member.memberSince),
 
-        status:
-          mapProfileMemberStatus(
-            member.status,
-          ),
+        status: mapProfileMemberStatus(member.status),
       },
     };
   }
@@ -528,19 +426,8 @@ export class ProfileService {
     middleName: string | null,
     lastName: string,
   ): string {
-    return [
-      firstName.trim(),
-
-      middleName?.trim(),
-
-      lastName.trim(),
-    ]
-      .filter(
-        (
-          value,
-        ): value is string =>
-          Boolean(value),
-      )
+    return [firstName.trim(), middleName?.trim(), lastName.trim()]
+      .filter((value): value is string => Boolean(value))
       .join(' ');
   }
 
@@ -548,37 +435,23 @@ export class ProfileService {
      PARSE YYYY-MM-DD
   ======================================================= */
 
-  private parseDateOnly(
-    value:
-      | string
-      | null
-      | undefined,
-  ): Date | null {
+  private parseDateOnly(value: string | null | undefined): Date | null {
     if (!value) {
       return null;
     }
 
-    return new Date(
-      `${value}T00:00:00.000Z`,
-    );
+    return new Date(`${value}T00:00:00.000Z`);
   }
 
   /* =======================================================
      FORMAT DATE AS YYYY-MM-DD
   ======================================================= */
 
-  private formatDateOnly(
-    value:
-      | Date
-      | null
-      | undefined,
-  ): string | null {
+  private formatDateOnly(value: Date | null | undefined): string | null {
     if (!value) {
       return null;
     }
 
-    return value
-      .toISOString()
-      .slice(0, 10);
+    return value.toISOString().slice(0, 10);
   }
 }

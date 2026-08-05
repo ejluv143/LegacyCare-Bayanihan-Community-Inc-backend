@@ -135,8 +135,9 @@ model Member {
   address     String?   @db.Text
   dateOfBirth DateTime? @map("date_of_birth") @db.Date
 
-  email String? @unique @db.VarChar(191)
-  phone String  @db.VarChar(30)
+  email        String? @unique @db.VarChar(191)
+  phone        String  @db.VarChar(30)
+  profilePhoto String? @map("profile_photo") @db.LongText
 
   username       String         @unique @db.VarChar(50)
   passwordHash   String?        @map("password_hash") @db.VarChar(255)

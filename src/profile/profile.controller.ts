@@ -1,31 +1,16 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Patch,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
 
-import type {
-  Request,
-} from 'express';
+import type { Request } from 'express';
 
-import {
-  JwtAuthGuard,
-} from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-import {
-  UpdateProfileCredentialsDto,
-} from './dto/update-profile-credentials.dto';
+import { UpdateProfileCredentialsDto } from './dto/update-profile-credentials.dto';
 
-import {
-  UpdateProfileDto,
-} from './dto/update-profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
-import {
-  ProfileService,
-} from './profile.service';
+import { UpdateProfilePhotoDto } from './dto/update-profile-photo.dto';
+
+import { ProfileService } from './profile.service';
 
 import type {
   ProfileCredentialsResponse,
@@ -36,8 +21,7 @@ import type {
    AUTHENTICATED REQUEST
 ========================================================= */
 
-interface AuthenticatedRequest
-  extends Request {
+interface AuthenticatedRequest extends Request {
   user: {
     sub: string;
 
@@ -56,10 +40,7 @@ interface AuthenticatedRequest
 @Controller('member/profile')
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
-  constructor(
-    private readonly profileService:
-      ProfileService,
-  ) {}
+  constructor(private readonly profileService: ProfileService) {}
 
   /* =======================================================
      GET PROFILE
@@ -72,9 +53,7 @@ export class ProfileController {
     @Req()
     request: AuthenticatedRequest,
   ): Promise<ProfileResponse> {
-    return this.profileService.getProfile(
-      request.user.sub,
-    );
+    return this.profileService.getProfile(request.user.sub);
   }
 
   /* =======================================================
@@ -91,9 +70,20 @@ export class ProfileController {
     @Body()
     dto: UpdateProfileDto,
   ): Promise<ProfileResponse> {
-    return this.profileService.updateProfile(
+    return this.profileService.updateProfile(request.user.sub, dto);
+  }
+
+  @Patch('photo')
+  updateProfilePhoto(
+    @Req()
+    request: AuthenticatedRequest,
+
+    @Body()
+    dto: UpdateProfilePhotoDto,
+  ): Promise<ProfileResponse> {
+    return this.profileService.updateProfilePhoto(
       request.user.sub,
-      dto,
+      dto.profilePhoto,
     );
   }
 
@@ -111,9 +101,6 @@ export class ProfileController {
     @Body()
     dto: UpdateProfileCredentialsDto,
   ): Promise<ProfileCredentialsResponse> {
-    return this.profileService.updateCredentials(
-      request.user.sub,
-      dto,
-    );
+    return this.profileService.updateCredentials(request.user.sub, dto);
   }
 }
