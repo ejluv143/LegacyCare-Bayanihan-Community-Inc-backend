@@ -1,1 +1,12 @@
-import { Module } from '@nestjs/common'; import { DatabaseModule } from '../database/database.module'; import { AdminCodesController } from './admin-codes.controller'; import { AdminCodesService } from './admin-codes.service'; @Module({ imports: [DatabaseModule], controllers: [AdminCodesController], providers: [AdminCodesService], exports: [AdminCodesService], }) export class AdminCodesModule {}
+import { Module } from '@nestjs/common';
+import { DatabaseModule } from '../database/database.module';
+import { AdminCodesController } from './admin-codes.controller';
+import { AdminCodesService } from './admin-codes.service';
+
+@Module({
+  imports: [DatabaseModule],
+  controllers: [AdminCodesController],
+  providers: [AdminCodesService],
+  exports: [AdminCodesService],
+})
+export class AdminCodesModule {}

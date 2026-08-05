@@ -22,6 +22,7 @@
 *.key
 *.p12
 *.pfx
+*.ca.pem
 
 # Logs
 *.log

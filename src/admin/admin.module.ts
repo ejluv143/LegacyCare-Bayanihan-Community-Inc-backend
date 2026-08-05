@@ -25,16 +25,8 @@ import { AdminCodeDistributionModule } from './code-distribution/admin-code-dist
     AdminCodeDistributionModule,
   ],
 
-  controllers: [
-    AdminController,
-  ],
-
-  providers: [
-    AdminService,
-  ],
-
-  exports: [
-    AdminService,
-  ],
+  controllers: [AdminController],
+  providers: [AdminService],
+  exports: [AdminService],
 })
 export class AdminModule {}

@@ -4,7 +4,7 @@ import {
   IsNotEmpty,
   IsString,
   IsUUID,
-} from "class-validator";
+} from 'class-validator';
 
 export class SendCodesDto {
   @IsUUID()
