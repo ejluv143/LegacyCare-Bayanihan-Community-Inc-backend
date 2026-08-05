@@ -9,6 +9,7 @@ import { BeneficiaryModule } from './beneficiary/beneficiary.module';
 import { DigitalIdModule } from './digital-id/digital-id.module';
 import { MemberDashboardModule } from './member/member-dashboard.module';
 import { ProfileModule } from './profile/profile.module';
+import { SatelliteModule } from './satellite/satellite.module';
 
 @Module({
   imports: [
@@ -17,26 +18,15 @@ import { ProfileModule } from './profile/profile.module';
       envFilePath: '.env',
       cache: true,
     }),
-
     AdminModule,
-
     AuthModule,
-
     BeneficiaryModule,
-
     MemberDashboardModule,
-
     DigitalIdModule,
-
     ProfileModule,
+    SatelliteModule,
   ],
-
-  controllers: [
-    AppController,
-  ],
-
-  providers: [
-    AppService,
-  ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
