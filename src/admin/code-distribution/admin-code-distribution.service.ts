@@ -96,15 +96,33 @@ export class AdminCodeDistributionService {
 
     const now = new Date();
 
-    await this.prisma.generatedCode.updateMany({
-      where: { id: { in: dto.codeIds } },
-      data: { updatedAt: now },
-    });
+    const assignedCodes = await this.prisma.$transaction(
+      async (transaction) => {
+        const assignment = await transaction.generatedCode.updateMany({
+          where: {
+            id: { in: dto.codeIds },
+            status: GeneratedCodeStatus.AVAILABLE,
+            assignedSatelliteId: null,
+          },
+          data: {
+            status: GeneratedCodeStatus.ASSIGNED,
+            assignedSatelliteId: satellite.id,
+            assignedAt: now,
+          },
+        });
 
-    const assignedCodes = await this.prisma.generatedCode.findMany({
-      where: { id: { in: dto.codeIds } },
-      orderBy: { code: 'asc' },
-    });
+        if (assignment.count !== dto.codeIds.length) {
+          throw new ConflictException(
+            'Some generated codes were assigned by another request. Please refresh and try again.',
+          );
+        }
+
+        return transaction.generatedCode.findMany({
+          where: { id: { in: dto.codeIds } },
+          orderBy: { code: 'asc' },
+        });
+      },
+    );
 
     return {
       success: true,
@@ -116,6 +134,7 @@ export class AdminCodeDistributionService {
         satelliteCode: satellite.satelliteCode,
         satelliteName: satellite.satelliteName,
         assignedCount: assignedCodes.length,
+        assignedCodeIds: assignedCodes.map((code) => code.id),
         assignedAt: now.toISOString(),
         codes: assignedCodes.map((code) => ({
           id: code.id,
