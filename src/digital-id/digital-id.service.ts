@@ -224,69 +224,7 @@ export class DigitalIdService {
        MEMBERSHIP BENEFITS
     ===================================================== */
 
-    let benefits: DigitalIdBenefitResponse[] = [
-      {
-        id: 'accidental-death-24-hours',
-
-        title: 'Accidental Death Assistance',
-
-        subtitle: 'After 24 Hours',
-
-        amount: '₱25,000 Cash',
-
-        grocery: '₱5,000 Grocery',
-      },
-
-      {
-        id: 'accidental-death-six-months',
-
-        title: 'Accidental Death Assistance',
-
-        subtitle: '6 Months Contestability',
-
-        amount: '₱50,000 Cash',
-
-        grocery: '₱10,000 Grocery',
-      },
-
-      {
-        id: 'natural-death-four-months',
-
-        title: 'Natural Death Assistance',
-
-        subtitle: '4 Months Contestability',
-
-        amount: '₱25,000 Cash',
-
-        grocery: '₱5,000 Grocery',
-      },
-
-      {
-        id: 'natural-death-eight-months',
-
-        title: 'Natural Death Assistance',
-
-        subtitle: '8 Months Contestability',
-
-        amount: '₱50,000 Cash',
-
-        grocery: '₱10,000 Grocery',
-      },
-
-      {
-        id: 'hospitalization',
-
-        title: 'Hospitalization Assistance',
-
-        subtitle: 'Qualified hospital confinement',
-
-        amount: '₱3,000 per day for 7 days',
-
-        grocery: 'Laboratory and medicine assistance',
-      },
-    ];
-
-    benefits = [
+    const benefits: DigitalIdBenefitResponse[] = [
       {
         id: 'accidental-death-24-hours',
         title: 'Accidental Death Assistance',
