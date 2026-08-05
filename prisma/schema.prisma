@@ -53,6 +53,7 @@ enum ActivationCodeType {
 
 enum GeneratedCodeStatus {
   AVAILABLE
+  ASSIGNED
   USED
   EXPIRED
   DISABLED
@@ -268,6 +269,9 @@ model GeneratedCode {
   usedByMemberId   String?   @map("used_by_member_id") @db.Char(36)
   usedByMemberName String?   @map("used_by_member_name") @db.VarChar(300)
 
+  assignedSatelliteId String?   @map("assigned_satellite_id") @db.Char(36)
+  assignedAt          DateTime? @map("assigned_at") @db.DateTime(3)
+
   disabledAt        DateTime? @map("disabled_at") @db.DateTime(3)
   disabledByAdminId String?   @map("disabled_by_admin_id") @db.VarChar(191)
   disabledReason    String?   @map("disabled_reason") @db.VarChar(500)
@@ -276,6 +280,8 @@ model GeneratedCode {
   generationBatch   GeneratedCodeBatch @relation(fields: [generationBatchId], references: [id], onDelete: Restrict)
 
   usedByMember Member? @relation("GeneratedCodeUsedByMember", fields: [usedByMemberId], references: [id], onDelete: SetNull)
+
+  assignedSatellite Satellite? @relation("SatelliteAssignedCodes", fields: [assignedSatelliteId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
@@ -286,6 +292,8 @@ model GeneratedCode {
   @@index([generatedAt])
   @@index([expiresAt])
   @@index([usedByMemberId])
+  @@index([assignedSatelliteId])
+  @@index([status, assignedSatelliteId])
   @@index([generationBatchId])
   @@map("generated_codes")
 }
@@ -334,6 +342,7 @@ model Satellite {
   permissions   SatellitePermissions?
 
   members       Member[]
+  assignedCodes GeneratedCode[]          @relation("SatelliteAssignedCodes")
   statusHistory SatelliteStatusHistory[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)

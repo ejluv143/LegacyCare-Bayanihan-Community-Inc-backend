@@ -21,6 +21,7 @@ export enum GeneratedCodeCategory {
 
 export enum GeneratedCodeStatus {
   AVAILABLE = 'available',
+  ASSIGNED = 'assigned',
   USED = 'used',
   EXPIRED = 'expired',
   DISABLED = 'disabled',
@@ -67,7 +68,7 @@ export class GeneratedCodesQueryDto {
   )
   @IsOptional()
   @IsEnum(GeneratedCodeStatus, {
-    message: 'status must be available, used, expired, or disabled',
+    message: 'status must be available, assigned, used, expired, or disabled',
   })
   status?: GeneratedCodeStatus;
 

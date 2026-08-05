@@ -148,12 +148,16 @@ function toPrismaStatus(status: QueryCodeStatus): PrismaGeneratedCodeStatus {
   switch (status) {
     case QueryCodeStatus.AVAILABLE:
       return PrismaGeneratedCodeStatus.AVAILABLE;
+    case QueryCodeStatus.ASSIGNED:
+      return PrismaGeneratedCodeStatus.ASSIGNED;
     case QueryCodeStatus.USED:
       return PrismaGeneratedCodeStatus.USED;
     case QueryCodeStatus.EXPIRED:
       return PrismaGeneratedCodeStatus.EXPIRED;
     case QueryCodeStatus.DISABLED:
       return PrismaGeneratedCodeStatus.DISABLED;
+    default:
+      throw new Error('Unsupported query status.');
   }
 }
 
@@ -180,16 +184,20 @@ function toApiCategory(
 
 function toApiStatus(
   status: PrismaGeneratedCodeStatus,
-): 'available' | 'used' | 'expired' | 'disabled' {
+): 'available' | 'assigned' | 'used' | 'expired' | 'disabled' {
   switch (status) {
     case PrismaGeneratedCodeStatus.AVAILABLE:
       return 'available';
+    case PrismaGeneratedCodeStatus.ASSIGNED:
+      return 'assigned';
     case PrismaGeneratedCodeStatus.USED:
       return 'used';
     case PrismaGeneratedCodeStatus.EXPIRED:
       return 'expired';
     case PrismaGeneratedCodeStatus.DISABLED:
       return 'disabled';
+    default:
+      throw new Error('Unsupported generated code status.');
   }
 }
 
@@ -202,8 +210,7 @@ function mapGeneratedCode(code: GeneratedCode) {
     ...(code.activationType
       ? {
           activationType: code.activationType.toLowerCase() as
-            | 'basic'
-            | 'premium',
+            'basic' | 'premium',
         }
       : {}),
     ...(code.topUpAmount !== null
@@ -232,8 +239,7 @@ function mapGenerationBatch(batch: GeneratedCodeBatch) {
     ...(batch.activationType
       ? {
           activationType: batch.activationType.toLowerCase() as
-            | 'basic'
-            | 'premium',
+            'basic' | 'premium',
         }
       : {}),
     ...(batch.topUpAmount !== null
@@ -399,89 +405,70 @@ export class AdminCodesService {
   ) {
     await this.expireAvailableCodes();
 
-    return this.runSerializableTransaction(
-      async (transaction) => {
-        const normalizedCode = code.trim().toUpperCase();
+    return this.runSerializableTransaction(async (transaction) => {
+      const normalizedCode = code.trim().toUpperCase();
 
-        if (!normalizedCode) {
-          throw new BadRequestException(
-            'Beneficiary code is required.',
-          );
-        }
+      if (!normalizedCode) {
+        throw new BadRequestException('Beneficiary code is required.');
+      }
 
-        const generatedCode =
-          await transaction.generatedCode.findUnique({
-            where: {
-              code: normalizedCode,
-            },
-          });
+      const generatedCode = await transaction.generatedCode.findUnique({
+        where: {
+          code: normalizedCode,
+        },
+      });
 
-        if (!generatedCode) {
-          throw new NotFoundException(
-            'Beneficiary code was not found.',
-          );
-        }
+      if (!generatedCode) {
+        throw new NotFoundException('Beneficiary code was not found.');
+      }
 
-        if (
-          generatedCode.category !==
-          PrismaGeneratedCodeCategory.BENEFICIARY
-        ) {
-          throw new BadRequestException(
-            'The submitted code is not a beneficiary code.',
-          );
-        }
+      if (generatedCode.category !== PrismaGeneratedCodeCategory.BENEFICIARY) {
+        throw new BadRequestException(
+          'The submitted code is not a beneficiary code.',
+        );
+      }
 
-        if (
-          generatedCode.status !==
-          PrismaGeneratedCodeStatus.AVAILABLE
-        ) {
-          throw new ConflictException(
-            `This beneficiary code is ${toApiStatus(
-              generatedCode.status,
-            )}.`,
-          );
-        }
+      if (generatedCode.status !== PrismaGeneratedCodeStatus.AVAILABLE) {
+        throw new ConflictException(
+          `This beneficiary code is ${toApiStatus(generatedCode.status)}.`,
+        );
+      }
 
-        if (
-          generatedCode.expiresAt &&
-          generatedCode.expiresAt.getTime() <= Date.now()
-        ) {
-          await transaction.generatedCode.update({
-            where: {
-              id: generatedCode.id,
-            },
-            data: {
-              status: PrismaGeneratedCodeStatus.EXPIRED,
-            },
-          });
+      if (
+        generatedCode.expiresAt &&
+        generatedCode.expiresAt.getTime() <= Date.now()
+      ) {
+        await transaction.generatedCode.update({
+          where: {
+            id: generatedCode.id,
+          },
+          data: {
+            status: PrismaGeneratedCodeStatus.EXPIRED,
+          },
+        });
 
-          throw new ConflictException(
-            'This beneficiary code has expired.',
-          );
-        }
+        throw new ConflictException('This beneficiary code has expired.');
+      }
 
-        const updatedCode =
-          await transaction.generatedCode.update({
-            where: {
-              id: generatedCode.id,
-            },
-            data: {
-              status: PrismaGeneratedCodeStatus.USED,
-              usedAt: new Date(),
-              usedByMemberId: memberId,
-              usedByMemberName: memberName,
-            },
-          });
+      const updatedCode = await transaction.generatedCode.update({
+        where: {
+          id: generatedCode.id,
+        },
+        data: {
+          status: PrismaGeneratedCodeStatus.USED,
+          usedAt: new Date(),
+          usedByMemberId: memberId,
+          usedByMemberName: memberName,
+        },
+      });
 
-        return {
-          success: true,
-          unlocked: true,
-          message:
-            'Beneficiary access unlocked successfully.',
-          code: mapGeneratedCode(updatedCode),
-        };
-      },
-    );
+      return {
+        success: true,
+        unlocked: true,
+        message: 'Beneficiary access unlocked successfully.',
+        code: mapGeneratedCode(updatedCode),
+      };
+    });
   }
 
   async getGenerationHistory(query: GeneratedCodesQueryDto) {
