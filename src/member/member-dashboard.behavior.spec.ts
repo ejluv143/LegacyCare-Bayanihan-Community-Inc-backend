@@ -8,13 +8,6 @@ import {
   jest,
 } from '@jest/globals';
 
-import {
-  MemberEarningStatus,
-  MemberEarningType,
-  MemberStatus,
-  MembershipType,
-} from '../generated/prisma/enums';
-
 import type { PrismaService } from '../admin/database/prisma/prisma.service';
 import type { MembersService } from '../members/members.service';
 
@@ -33,8 +26,16 @@ interface DecimalLike {
   toNumber(): number;
 }
 
+type EarningType =
+  'PAIRING_INCOME' | 'REFERRAL_COMMISSION' | 'GROUP_COMMISSION';
+
+type TestMembershipType = 'BASIC' | 'PREMIUM';
+
+type TestMemberStatus =
+  'PENDING_ACTIVATION' | 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
+
 interface EarningRecord {
-  type: MemberEarningType;
+  type: EarningType;
   amount: DecimalLike;
   earnedAt: Date;
 }
@@ -46,8 +47,8 @@ interface GenealogyMemberRecord {
   middleName: string | null;
   lastName: string;
   username: string;
-  membershipType: MembershipType;
-  status: MemberStatus;
+  membershipType: TestMembershipType;
+  status: TestMemberStatus;
   referralCode: string;
   sponsorId: string | null;
   activatedAt: Date | null;
@@ -58,10 +59,10 @@ interface GenealogyMemberRecord {
 }
 
 const NOW = new Date('2026-08-06T04:30:00.000Z');
-const EARNING_TYPES = [
-  MemberEarningType.PAIRING_INCOME,
-  MemberEarningType.REFERRAL_COMMISSION,
-  MemberEarningType.GROUP_COMMISSION,
+const EARNING_TYPES: EarningType[] = [
+  'PAIRING_INCOME',
+  'REFERRAL_COMMISSION',
+  'GROUP_COMMISSION',
 ];
 
 function decimal(value: number): DecimalLike {
@@ -71,7 +72,7 @@ function decimal(value: number): DecimalLike {
 }
 
 function earning(
-  type: MemberEarningType,
+  type: EarningType,
   amount: number,
   earnedAt: string,
 ): EarningRecord {
@@ -92,8 +93,8 @@ function genealogyMember(
     middleName: null,
     lastName: 'Member',
     username: 'root.member',
-    membershipType: MembershipType.BASIC,
-    status: MemberStatus.ACTIVE,
+    membershipType: 'BASIC',
+    status: 'ACTIVE',
     referralCode: 'LC-ROOT-CODE',
     sponsorId: null,
     activatedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -107,6 +108,8 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
   const memberFindMany = jest.fn<(input: unknown) => Promise<unknown[]>>();
   const memberCount = jest.fn<(input: unknown) => Promise<number>>();
   const earningFindMany = jest.fn<(input: unknown) => Promise<unknown[]>>();
+  const walletTransactionFindMany =
+    jest.fn<(input: unknown) => Promise<unknown[]>>();
   const createMember =
     jest.fn<(input: unknown) => Promise<Record<string, unknown>>>();
 
@@ -118,6 +121,9 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
     },
     memberEarning: {
       findMany: earningFindMany,
+    },
+    walletTransaction: {
+      findMany: walletTransactionFindMany,
     },
   };
 
@@ -137,6 +143,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
     memberFindMany.mockReset();
     memberCount.mockReset();
     earningFindMany.mockReset();
+    walletTransactionFindMany.mockReset();
     createMember.mockReset();
   });
 
@@ -147,51 +154,29 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
   it('aggregates completed earnings and network growth using Manila month boundaries', async () => {
     memberFindUnique.mockResolvedValue({ id: 'root-member' });
     earningFindMany.mockResolvedValue([
-      earning(
-        MemberEarningType.PAIRING_INCOME,
-        300,
-        '2026-08-02T00:00:00.000Z',
-      ),
-      earning(
-        MemberEarningType.REFERRAL_COMMISSION,
-        100,
-        '2026-08-03T00:00:00.000Z',
-      ),
-      earning(
-        MemberEarningType.GROUP_COMMISSION,
-        50,
-        '2026-08-04T00:00:00.000Z',
-      ),
-      earning(
-        MemberEarningType.PAIRING_INCOME,
-        100,
-        '2026-07-02T00:00:00.000Z',
-      ),
-      earning(
-        MemberEarningType.REFERRAL_COMMISSION,
-        50,
-        '2026-07-03T00:00:00.000Z',
-      ),
-      earning(
-        MemberEarningType.GROUP_COMMISSION,
-        100,
-        '2026-07-04T00:00:00.000Z',
-      ),
-      earning(
-        MemberEarningType.PAIRING_INCOME,
-        600,
-        '2026-06-02T00:00:00.000Z',
-      ),
-      earning(
-        MemberEarningType.REFERRAL_COMMISSION,
-        150,
-        '2026-06-03T00:00:00.000Z',
-      ),
-      earning(
-        MemberEarningType.GROUP_COMMISSION,
-        50,
-        '2026-06-04T00:00:00.000Z',
-      ),
+      earning('PAIRING_INCOME', 300, '2026-08-02T00:00:00.000Z'),
+      earning('REFERRAL_COMMISSION', 100, '2026-08-03T00:00:00.000Z'),
+      earning('GROUP_COMMISSION', 50, '2026-08-04T00:00:00.000Z'),
+      earning('PAIRING_INCOME', 100, '2026-07-02T00:00:00.000Z'),
+      earning('REFERRAL_COMMISSION', 50, '2026-07-03T00:00:00.000Z'),
+      earning('GROUP_COMMISSION', 100, '2026-07-04T00:00:00.000Z'),
+      earning('PAIRING_INCOME', 600, '2026-06-02T00:00:00.000Z'),
+      earning('REFERRAL_COMMISSION', 150, '2026-06-03T00:00:00.000Z'),
+      earning('GROUP_COMMISSION', 50, '2026-06-04T00:00:00.000Z'),
+    ]);
+    walletTransactionFindMany.mockResolvedValue([
+      {
+        direction: 'CREDIT',
+        amount: decimal(700),
+      },
+      {
+        direction: 'DEBIT',
+        amount: decimal(100),
+      },
+      {
+        direction: 'NEUTRAL',
+        amount: decimal(999),
+      },
     ]);
     const directMembers = [
       {
@@ -230,7 +215,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
 
     const completedEarningsWhere = {
       memberId: 'root-member',
-      status: MemberEarningStatus.COMPLETED,
+      status: 'COMPLETED',
       type: {
         in: EARNING_TYPES,
       },
@@ -242,6 +227,16 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
         type: true,
         amount: true,
         earnedAt: true,
+      },
+    });
+    expect(walletTransactionFindMany).toHaveBeenCalledWith({
+      where: {
+        memberId: 'root-member',
+        status: 'COMPLETED',
+      },
+      select: {
+        direction: true,
+        amount: true,
       },
     });
     const networkMemberSelect = {
@@ -279,7 +274,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
     expect(result).toEqual({
       success: true,
       stats: {
-        walletBalance: 1500,
+        walletBalance: 2100,
         walletGrowthPercent: 80,
         totalEarnings: 1500,
         earningsGrowthPercent: 80,
@@ -305,6 +300,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(earningFindMany).not.toHaveBeenCalled();
+    expect(walletTransactionFindMany).not.toHaveBeenCalled();
     expect(memberFindMany).not.toHaveBeenCalled();
   });
 
@@ -316,7 +312,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
         firstName: ' Ana ',
         middleName: ' Dela ',
         lastName: ' Cruz ',
-        membershipType: MembershipType.PREMIUM,
+        membershipType: 'PREMIUM',
         profilePhoto: 'https://example.test/avatar.jpg',
         activatedAt: new Date('2026-08-05T08:00:00.000Z'),
       },
@@ -326,7 +322,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
 
     expect(memberFindMany).toHaveBeenCalledWith({
       where: {
-        status: MemberStatus.ACTIVE,
+        status: 'ACTIVE',
         activatedAt: {
           not: null,
         },
@@ -374,14 +370,14 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
       id: 'root-member',
       membershipId: 'LC-ROOT',
       referralCode: 'LC-SPONSOR-CODE',
-      status: MemberStatus.ACTIVE,
+      status: 'ACTIVE',
     });
     memberCount.mockResolvedValue(3);
     createMember.mockResolvedValue({
       id: 'created-member',
       membershipId: 'LC-CREATED',
-      membershipType: MembershipType.PREMIUM,
-      status: MemberStatus.SUSPENDED,
+      membershipType: 'PREMIUM',
+      status: 'SUSPENDED',
     });
 
     const dto: CreateGenealogyMemberDto = {
@@ -393,7 +389,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
       email: 'new.member@example.test',
       phone: '+639171234567',
       username: 'new.member',
-      membershipType: MembershipType.PREMIUM,
+      membershipType: 'PREMIUM',
       activationCode: 'ACT-123456',
       password: 'correct-horse-battery-staple',
       referralCode: 'IGNORED-CODE',
@@ -417,7 +413,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
       email: 'new.member@example.test',
       phone: '+639171234567',
       username: 'new.member',
-      membershipType: MembershipType.PREMIUM,
+      membershipType: 'PREMIUM',
       activationCode: 'ACT-123456',
       sponsorReferralCode: 'LC-SPONSOR-CODE',
       password: 'correct-horse-battery-staple',
@@ -446,7 +442,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
       genealogyMember({
         id: 'direct-1',
         membershipId: 'LC-001',
-        status: MemberStatus.ACTIVE,
+        status: 'ACTIVE',
         sponsorId: root.id,
         createdAt: new Date('2026-02-01T00:00:00.000Z'),
         _count: {
@@ -456,7 +452,7 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
       genealogyMember({
         id: 'direct-2',
         membershipId: 'LC-002',
-        status: MemberStatus.PENDING_ACTIVATION,
+        status: 'PENDING_ACTIVATION',
         sponsorId: root.id,
         activatedAt: null,
         createdAt: new Date('2026-03-01T00:00:00.000Z'),
@@ -464,14 +460,14 @@ describe('MemberDashboardService dashboard compatibility behavior', () => {
       genealogyMember({
         id: 'direct-3',
         membershipId: 'LC-003',
-        status: MemberStatus.SUSPENDED,
+        status: 'SUSPENDED',
         sponsorId: root.id,
         createdAt: new Date('2026-04-01T00:00:00.000Z'),
       }),
       genealogyMember({
         id: 'direct-4',
         membershipId: 'LC-004',
-        status: MemberStatus.DISABLED,
+        status: 'DISABLED',
         sponsorId: root.id,
         createdAt: new Date('2026-05-01T00:00:00.000Z'),
       }),

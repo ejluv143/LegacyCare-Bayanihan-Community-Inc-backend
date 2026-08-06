@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AuthModule } from '../auth/auth.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
@@ -13,6 +14,8 @@ import { AdminCodeDistributionModule } from './code-distribution/admin-code-dist
 @Module({
   imports: [
     DatabaseModule,
+
+    AuthModule,
 
     AdminCodesModule,
 

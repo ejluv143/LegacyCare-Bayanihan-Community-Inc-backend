@@ -9,6 +9,7 @@ import type {
   MemberEarningType,
   MemberStatus,
   MembershipType,
+  WalletTransactionDirection,
 } from '../generated/prisma/enums';
 
 import { PrismaService } from '../admin/database/prisma/prisma.service';
@@ -147,6 +148,11 @@ interface EarningRecord {
   earnedAt: Date;
 }
 
+interface WalletFundingRecord {
+  direction: WalletTransactionDirection;
+  amount: Prisma.Decimal;
+}
+
 interface MemberEarningRecord {
   memberId: string;
   amount: Prisma.Decimal;
@@ -173,6 +179,20 @@ interface MemberEarningDelegate {
 
 interface MemberEarningClient {
   memberEarning: MemberEarningDelegate;
+}
+
+interface WalletTransactionDelegate {
+  findMany(args: {
+    where: unknown;
+    select: {
+      direction: true;
+      amount: true;
+    };
+  }): Promise<WalletFundingRecord[]>;
+}
+
+interface WalletTransactionClient {
+  walletTransaction: WalletTransactionDelegate;
 }
 
 interface EarningSummary {
@@ -405,6 +425,24 @@ function summarizeEarnings(earnings: readonly EarningRecord[]): EarningSummary {
   };
 }
 
+function summarizeWalletFunding(
+  transactions: readonly WalletFundingRecord[],
+): number {
+  return transactions.reduce((total, transaction) => {
+    const amount = Math.abs(transaction.amount.toNumber());
+
+    switch (transaction.direction) {
+      case 'CREDIT':
+        return total + amount;
+      case 'DEBIT':
+        return total - amount;
+      case 'NEUTRAL':
+      default:
+        return total;
+    }
+  }, 0);
+}
+
 function calculateGrowthPercent(current: number, previous: number): number {
   if (previous === 0) {
     return current === 0 ? 0 : 100;
@@ -528,9 +566,8 @@ export class MemberDashboardService {
    * Returns the authenticated member's dashboard
    * wallet and commission statistics.
    *
-   * Completed earnings are the current source of truth.
-   * Until withdrawals are modeled, the available wallet
-   * balance is the member's completed-earnings total.
+   * Completed earnings and completed wallet-funding ledger
+   * entries together determine the available balance.
    */
   async getDashboardStats(
     memberId: string,
@@ -558,7 +595,7 @@ export class MemberDashboardService {
       },
     };
 
-    const [earnings, networkMembers] = await Promise.all([
+    const [earnings, walletTransactions, networkMembers] = await Promise.all([
       this.memberEarnings.findMany({
         where: completedEarningsWhere,
         select: {
@@ -567,10 +604,21 @@ export class MemberDashboardService {
           earnedAt: true,
         },
       }),
+      this.walletTransactions.findMany({
+        where: {
+          memberId,
+          status: 'COMPLETED',
+        },
+        select: {
+          direction: true,
+          amount: true,
+        },
+      }),
       this.loadNetworkMembers(memberId),
     ]);
 
     const lifetimeEarnings = summarizeEarnings(earnings);
+    const walletFunding = summarizeWalletFunding(walletTransactions);
     const currentMonthEarnings = summarizeEarnings(
       earnings.filter((earning) =>
         isWithinRange(
@@ -599,7 +647,7 @@ export class MemberDashboardService {
       success: true,
 
       stats: {
-        walletBalance: lifetimeEarnings.total,
+        walletBalance: lifetimeEarnings.total + walletFunding,
         walletGrowthPercent: earningsGrowthPercent,
 
         totalEarnings: lifetimeEarnings.total,
@@ -1014,5 +1062,10 @@ export class MemberDashboardService {
    */
   private get memberEarnings(): MemberEarningDelegate {
     return (this.prisma as unknown as MemberEarningClient).memberEarning;
+  }
+
+  private get walletTransactions(): WalletTransactionDelegate {
+    return (this.prisma as unknown as WalletTransactionClient)
+      .walletTransaction;
   }
 }

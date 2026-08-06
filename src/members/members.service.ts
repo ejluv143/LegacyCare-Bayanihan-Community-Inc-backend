@@ -19,6 +19,7 @@ import {
 } from '../generated/prisma/client';
 
 import { PrismaService } from '../admin/database/prisma/prisma.service';
+import { createMemberOpeningCredit } from '../wallet/wallet-opening-credit';
 
 const CODE_CHARACTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -295,6 +296,8 @@ export class MembersService {
             updatedAt: true,
           },
         });
+
+        await createMemberOpeningCredit(transaction, createdMember.id);
 
         const usedAt = new Date();
         const consumption = await transaction.generatedCode.updateMany({

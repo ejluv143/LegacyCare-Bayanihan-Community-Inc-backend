@@ -10,9 +10,12 @@ import {
   Post,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 
+import { AdminRoleGuard } from '../../auth/guards/admin-role.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AdminCodesService } from './admin-codes.service';
 import { DisableGeneratedCodeDto } from './dto/disable-generated-code.dto';
 import { GenerateActivationCodesDto } from './dto/generate-activation-codes.dto';
@@ -37,6 +40,7 @@ function getAdminId(request: AuthenticatedAdminRequest): string | null {
 }
 
 @Controller('admin/codes')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
 export class AdminCodesController {
   constructor(private readonly adminCodesService: AdminCodesService) {}
 

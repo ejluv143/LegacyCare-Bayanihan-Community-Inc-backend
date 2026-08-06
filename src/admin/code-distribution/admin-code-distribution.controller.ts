@@ -1,9 +1,12 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 
+import { AdminRoleGuard } from '../../auth/guards/admin-role.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AdminCodeDistributionService } from './admin-code-distribution.service';
 import { SendCodesDto } from './dto/send-codes.dto';
 
 @Controller('admin/code-distribution')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
 export class AdminCodeDistributionController {
   constructor(
     private readonly adminCodeDistributionService: AdminCodeDistributionService,

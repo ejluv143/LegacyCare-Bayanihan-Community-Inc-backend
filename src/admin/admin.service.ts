@@ -19,6 +19,7 @@ import {
   Prisma,
 } from '../generated/prisma/client';
 
+import { createMemberOpeningCredit } from '../wallet/wallet-opening-credit';
 import { CreateMemberDto } from './database/create-member.dto';
 import { PrismaService } from './database/prisma/prisma.service';
 
@@ -428,7 +429,7 @@ export class AdminService {
                 sponsor.id;
             }
 
-            return transaction.member.create({
+            const createdMember = await transaction.member.create({
               data: {
                 membershipId,
 
@@ -507,6 +508,10 @@ export class AdminService {
                 updatedAt: true,
               },
             });
+
+            await createMemberOpeningCredit(transaction, createdMember.id);
+
+            return createdMember;
           },
           {
             isolationLevel:

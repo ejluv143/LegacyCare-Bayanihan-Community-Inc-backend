@@ -1,17 +1,10 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  UseGuards,
-} from "@nestjs/common";
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 
-import type { Request } from "express";
+import type { Request } from 'express';
 
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { CreateGenealogyMemberDto } from "./dto/create-genealogy-member.dto";
-import { MemberDashboardService } from "./member-dashboard.service";
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateGenealogyMemberDto } from './dto/create-genealogy-member.dto';
+import { MemberDashboardService } from './member-dashboard.service';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -21,23 +14,19 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-@Controller("member")
+@Controller('member')
 @UseGuards(JwtAuthGuard)
 export class MemberController {
   constructor(
     private readonly memberDashboardService: MemberDashboardService,
   ) {}
 
-  @Get("genealogy")
-  getGenealogy(
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.memberDashboardService.getGenealogy(
-      request.user.sub,
-    );
+  @Get('genealogy')
+  getGenealogy(@Req() request: AuthenticatedRequest) {
+    return this.memberDashboardService.getGenealogy(request.user.sub);
   }
 
-  @Post("genealogy")
+  @Post('genealogy')
   createGenealogyMember(
     @Req() request: AuthenticatedRequest,
     @Body() dto: CreateGenealogyMemberDto,

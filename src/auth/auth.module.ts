@@ -11,6 +11,7 @@ import { MembersModule } from "../members/members.module";
 
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { AdminRoleGuard } from "./guards/admin-role.guard";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 
@@ -65,6 +66,7 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
     AuthService,
     JwtStrategy,
     JwtAuthGuard,
+    AdminRoleGuard,
   ],
 
   exports: [
@@ -72,6 +74,7 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
     JwtModule,
     PassportModule,
     JwtAuthGuard,
+    AdminRoleGuard,
   ],
 })
 export class AuthModule {}

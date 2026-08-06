@@ -42,6 +42,26 @@ enum MemberEarningStatus {
   REVERSED
 }
 
+enum WalletTransactionType {
+  OPENING_CREDIT
+  TOP_UP
+  WITHDRAWAL
+  ADJUSTMENT
+}
+
+enum WalletTransactionDirection {
+  CREDIT
+  DEBIT
+  NEUTRAL
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
 enum NotificationType {
   INFO
   ALERT
@@ -179,9 +199,10 @@ model Member {
   satelliteId String?    @map("satellite_id") @db.Char(36)
   satellite   Satellite? @relation(fields: [satelliteId], references: [id], onDelete: SetNull)
 
-  beneficiaries Beneficiary[]
-  notifications Notification[]
-  earnings      MemberEarning[]
+  beneficiaries      Beneficiary[]
+  notifications      Notification[]
+  earnings           MemberEarning[]
+  walletTransactions WalletTransaction[]
 
   redeemedGeneratedCodes GeneratedCode[] @relation("GeneratedCodeUsedByMember")
 
@@ -222,6 +243,32 @@ model MemberEarning {
   @@index([status, earnedAt, memberId])
   @@index([memberId, status, earnedAt])
   @@map("member_earnings")
+}
+
+model WalletTransaction {
+  id String @id @default(uuid()) @db.Char(36)
+
+  memberId String @map("member_id") @db.Char(36)
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  type      WalletTransactionType
+  direction WalletTransactionDirection
+  status    WalletTransactionStatus    @default(COMPLETED)
+  amount    Decimal                    @db.Decimal(14, 2)
+
+  sourceKey String @unique @map("source_key") @db.VarChar(191)
+
+  generatedCodeId String?        @unique @map("generated_code_id") @db.Char(36)
+  generatedCode   GeneratedCode? @relation(fields: [generatedCodeId], references: [id], onDelete: Restrict)
+
+  description String? @db.VarChar(500)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([memberId, status, createdAt])
+  @@index([memberId, type, createdAt])
+  @@map("wallet_transactions")
 }
 
 model Notification {
@@ -350,8 +397,9 @@ model GeneratedCode {
 
   assignedSatellite Satellite? @relation("SatelliteAssignedCodes", fields: [assignedSatelliteId], references: [id], onDelete: SetNull)
 
-  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  walletTransaction WalletTransaction?
+  createdAt         DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
 
   @@index([category, status])
   @@index([activationType, status])

@@ -11,6 +11,7 @@ import { MemberDashboardModule } from './member/member-dashboard.module';
 import { ProfileModule } from './profile/profile.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SatelliteModule } from './satellite/satellite.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { SatelliteModule } from './satellite/satellite.module';
     ProfileModule,
     NotificationsModule,
     SatelliteModule,
+    WalletModule,
   ],
   controllers: [AppController],
   providers: [AppService],
