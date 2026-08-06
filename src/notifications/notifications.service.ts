@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../admin/database/prisma/prisma.service';
-import type { Notification, PrismaClient } from '../generated/prisma/client';
+import type { Notification } from '../generated/prisma/client';
 import type {
   CreateNotificationInput,
   MemberNotificationListResponse,

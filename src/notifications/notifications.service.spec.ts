@@ -1,9 +1,11 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { describe, expect, it, beforeEach, jest } from '@jest/globals';
 
 import {
   NotificationChannel,
   NotificationType,
 } from '../generated/prisma/enums';
+import type { PrismaService } from '../admin/database/prisma/prisma.service';
 
 jest.mock('../admin/database/prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
@@ -26,19 +28,21 @@ describe('NotificationsService', () => {
 
   const prisma = {
     notification: {
-      create: jest.fn(),
+      create: jest.fn<(input: unknown) => Promise<typeof notification>>(),
       findMany: jest.fn(),
       count: jest.fn(),
-      updateMany: jest.fn(),
-      findFirst: jest.fn(),
+      updateMany: jest.fn<(input: unknown) => Promise<{ count: number }>>(),
+      findFirst: jest.fn<() => Promise<typeof notification | null>>(),
       delete: jest.fn(),
     },
     $transaction: jest.fn(),
   };
 
-  const service = new NotificationsService(prisma as never);
+  const service = new NotificationsService(prisma as unknown as PrismaService);
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it('normalizes a notification before creating it', async () => {
     prisma.notification.create.mockResolvedValue(notification);
