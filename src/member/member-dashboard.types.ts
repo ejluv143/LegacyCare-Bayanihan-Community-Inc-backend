@@ -8,6 +8,31 @@ export type FrontendMembershipType =
   | "basic"
   | "premium";
 
+export type TopPerformersPeriod =
+  | "month"
+  | "year"
+  | "all-time";
+
+export interface TopPerformerDto {
+  id: string;
+  membershipId: string;
+  fullName: string;
+  profilePhoto: string | null;
+  membershipType: FrontendMembershipType;
+  status: FrontendMemberStatus;
+  rank: number;
+  totalReferrals: number;
+  period: TopPerformersPeriod;
+}
+
+export interface TopPerformersResponseDto {
+  success: true;
+  period: TopPerformersPeriod;
+  performers: TopPerformerDto[];
+  totalMembers: number;
+  generatedAt: string;
+}
+
 export type GenealogyPlacement =
   | "LEFT"
   | "RIGHT";

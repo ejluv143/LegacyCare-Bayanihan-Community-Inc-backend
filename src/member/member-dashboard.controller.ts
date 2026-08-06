@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -43,6 +44,14 @@ export class MemberDashboardController {
   @UseGuards(JwtAuthGuard)
   getRecentVerifiedMembers() {
     return this.memberDashboardService.getRecentVerifiedMembers();
+  }
+
+  @Get("top-performers")
+  @UseGuards(JwtAuthGuard)
+  getTopPerformers(
+    @Query("period") period?: string,
+  ) {
+    return this.memberDashboardService.getTopPerformers(period);
   }
 
   @Get("genealogy")

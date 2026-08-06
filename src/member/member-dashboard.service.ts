@@ -7,7 +7,8 @@ import {
 import {
   MemberStatus,
   MembershipType,
-} from "../generated/prisma/client";
+} from "../generated/prisma/enums";
+import type { Prisma } from "../generated/prisma/client";
 
 import { PrismaService } from "../admin/database/prisma/prisma.service";
 import { MembersService } from "../members/members.service";
@@ -17,6 +18,9 @@ import type { CreateGenealogyMemberDto } from "./dto/create-genealogy-member.dto
 import type {
   GenealogyMemberDto,
   GenealogyResponseDto,
+  TopPerformerDto,
+  TopPerformersPeriod,
+  TopPerformersResponseDto,
 } from "./member-dashboard.types";
 
 export interface MemberDashboardStats {
@@ -100,6 +104,18 @@ interface RecentVerifiedMemberRecord {
 
 const DIRECT_LEFT_LIMIT = 3;
 const RECENT_VERIFIED_MEMBERS_LIMIT = 5;
+const TOP_PERFORMERS_LIMIT = 10;
+const MANILA_UTC_OFFSET_MS = 8 * 60 * 60 * 1000;
+const TOP_PERFORMERS_PERIODS: TopPerformersPeriod[] = [
+  "month",
+  "year",
+  "all-time",
+];
+
+interface TopPerformersPeriodRange {
+  start: Date;
+  end: Date;
+}
 
 const genealogyMemberSelect = {
   id: true,
@@ -265,6 +281,78 @@ function mapRecentVerifiedMember(
   };
 }
 
+function getTopPerformersPeriodRange(
+  period: TopPerformersPeriod,
+  now: Date,
+): TopPerformersPeriodRange | null {
+  if (period === "all-time") {
+    return null;
+  }
+
+  const manilaDate = new Date(
+    now.getTime() + MANILA_UTC_OFFSET_MS,
+  );
+  const year = manilaDate.getUTCFullYear();
+  const month =
+    period === "month"
+      ? manilaDate.getUTCMonth()
+      : 0;
+  const endYear =
+    period === "year"
+      ? year + 1
+      : year;
+  const endMonth =
+    period === "month"
+      ? month + 1
+      : 0;
+
+  return {
+    start: new Date(
+      Date.UTC(year, month, 1) -
+        MANILA_UTC_OFFSET_MS,
+    ),
+    end: new Date(
+      Date.UTC(endYear, endMonth, 1) -
+        MANILA_UTC_OFFSET_MS,
+    ),
+  };
+}
+
+function createActiveReferralWhere(
+  period: TopPerformersPeriod,
+  now: Date,
+): Prisma.MemberWhereInput {
+  const periodRange =
+    getTopPerformersPeriodRange(
+      period,
+      now,
+    );
+
+  return {
+    status: MemberStatus.ACTIVE,
+
+    ...(periodRange
+      ? {
+          OR: [
+            {
+              activatedAt: {
+                gte: periodRange.start,
+                lt: periodRange.end,
+              },
+            },
+            {
+              activatedAt: null,
+              createdAt: {
+                gte: periodRange.start,
+                lt: periodRange.end,
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+}
+
 @Injectable()
 export class MemberDashboardService {
   constructor(
@@ -374,6 +462,96 @@ export class MemberDashboardService {
         recentMembers.map(
           mapRecentVerifiedMember,
         ),
+    };
+  }
+
+  async getTopPerformers(
+    requestedPeriod = "month",
+  ): Promise<TopPerformersResponseDto> {
+    if (
+      !TOP_PERFORMERS_PERIODS.includes(
+        requestedPeriod as TopPerformersPeriod,
+      )
+    ) {
+      throw new BadRequestException(
+        "period must be one of: month, year, all-time.",
+      );
+    }
+
+    const period = requestedPeriod as TopPerformersPeriod;
+    const now = new Date();
+    const activeReferralWhere =
+      createActiveReferralWhere(
+        period,
+        now,
+      );
+
+    const members = await this.prisma.member.findMany({
+      where: {
+        status: MemberStatus.ACTIVE,
+        referredMembers: {
+          some: activeReferralWhere,
+        },
+      },
+      select: {
+        id: true,
+        membershipId: true,
+        firstName: true,
+        middleName: true,
+        lastName: true,
+        profilePhoto: true,
+        membershipType: true,
+        status: true,
+        _count: {
+          select: {
+            referredMembers: {
+              where: activeReferralWhere,
+            },
+          },
+        },
+      },
+    });
+
+    const rankedMembers = members
+      .map((member) => ({
+        member,
+        totalReferrals:
+          member._count.referredMembers,
+      }))
+      .filter(({ totalReferrals }) => totalReferrals > 0)
+      .sort(
+        (left, right) =>
+          right.totalReferrals - left.totalReferrals ||
+          left.member.membershipId.localeCompare(
+            right.member.membershipId,
+          ) ||
+          left.member.id.localeCompare(right.member.id),
+      );
+
+    const performers: TopPerformerDto[] = rankedMembers
+      .slice(0, TOP_PERFORMERS_LIMIT)
+      .map(({ member, totalReferrals }, index) => ({
+        id: member.id,
+        membershipId: member.membershipId,
+        fullName: createFullName(
+          member.firstName,
+          member.middleName,
+          member.lastName,
+        ),
+        profilePhoto: member.profilePhoto,
+        membershipType: mapMembershipType(member.membershipType),
+        status: mapMemberStatus(member.status),
+        rank: index + 1,
+        totalReferrals,
+        period,
+      }));
+
+    return {
+      success: true,
+      period,
+      performers,
+      totalMembers: rankedMembers.length,
+      generatedAt: now.toISOString(),
     };
   }
 
