@@ -1,17 +1,9 @@
 export type FrontendMemberStatus =
-  | "pending"
-  | "active"
-  | "suspended"
-  | "inactive";
+  'pending' | 'active' | 'suspended' | 'inactive';
 
-export type FrontendMembershipType =
-  | "basic"
-  | "premium";
+export type FrontendMembershipType = 'basic' | 'premium';
 
-export type TopPerformersPeriod =
-  | "month"
-  | "year"
-  | "all-time";
+export type TopPerformersPeriod = 'month' | 'year' | 'all-time';
 
 export interface TopPerformerDto {
   id: string;
@@ -33,9 +25,7 @@ export interface TopPerformersResponseDto {
   generatedAt: string;
 }
 
-export type GenealogyPlacement =
-  | "LEFT"
-  | "RIGHT";
+export type GenealogyPlacement = 'LEFT' | 'RIGHT';
 
 export interface GenealogyMemberDto {
   id: string;
@@ -51,12 +41,15 @@ export interface GenealogyMemberDto {
 
   membershipType: FrontendMembershipType;
   status: FrontendMemberStatus;
+  verified: boolean;
 
   referralCode: string;
 
   sponsorId: string | null;
 
   createdAt: string;
+  joinedAt: string;
+  directReferrals: number;
 }
 
 export interface GenealogyBranchesDto {
@@ -71,6 +64,10 @@ export interface GenealogyStatisticsDto {
   pendingMembers: number;
   suspendedMembers: number;
   inactiveMembers: number;
+
+  verifiedMembers: number;
+  leftMembers: number;
+  rightMembers: number;
 }
 
 export interface GenealogyPlacementRulesDto {
@@ -82,6 +79,10 @@ export interface GenealogyPlacementRulesDto {
   remainingLeftSlots: number;
 
   nextPlacement: GenealogyPlacement;
+
+  leftDirectCount: number;
+  rightUnlocked: boolean;
+  canAddMember: boolean;
 }
 
 export interface GenealogyResponseDto {

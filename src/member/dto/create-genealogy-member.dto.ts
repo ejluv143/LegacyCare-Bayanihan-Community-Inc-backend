@@ -1,16 +1,23 @@
+import { Transform } from 'class-transformer';
+
 import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
-} from "class-validator";
+} from 'class-validator';
 
-import { MembershipType } from "../../generated/prisma/client";
+import { MembershipType } from '../../generated/prisma/client';
+
+function uppercaseTrimValue(value: unknown): unknown {
+  return typeof value === 'string' ? value.trim().toUpperCase() : value;
+}
 
 export class CreateGenealogyMemberDto {
   @IsString()
@@ -42,7 +49,7 @@ export class CreateGenealogyMemberDto {
   @MaxLength(50)
   @Matches(/^[a-zA-Z0-9._-]+$/, {
     message:
-      "username may only contain letters, numbers, periods, underscores, and hyphens",
+      'username may only contain letters, numbers, periods, underscores, and hyphens',
   })
   username!: string;
 
@@ -53,11 +60,12 @@ export class CreateGenealogyMemberDto {
 
   @IsString()
   @Matches(/^\+?[0-9][0-9\s()-]{7,20}$/, {
-    message: "phone must be a valid phone number",
+    message: 'phone must be a valid phone number',
   })
   phone!: string;
 
   @IsOptional()
+  @Transform(({ value }) => uppercaseTrimValue(value))
   @IsEnum(MembershipType)
   membershipType?: MembershipType;
 
@@ -65,8 +73,7 @@ export class CreateGenealogyMemberDto {
   @MinLength(6)
   @MaxLength(40)
   @Matches(/^[A-Za-z0-9-]+$/, {
-    message:
-      "activationCode may only contain letters, numbers, and hyphens",
+    message: 'activationCode may only contain letters, numbers, and hyphens',
   })
   activationCode!: string;
 
@@ -75,8 +82,33 @@ export class CreateGenealogyMemberDto {
   @MaxLength(128)
   password!: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(8)
   @MaxLength(128)
-  confirmPassword!: string;
+  confirmPassword?: string;
+
+  /*
+   * The member UI sends this display context with
+   * the form. The service deliberately derives the
+   * sponsor and final placement from the JWT/database.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  referralCode?: string;
+
+  @IsOptional()
+  @IsDateString()
+  memberSince?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(36)
+  sponsorId?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => uppercaseTrimValue(value))
+  @IsIn(['LEFT', 'RIGHT'])
+  placement?: 'LEFT' | 'RIGHT';
 }

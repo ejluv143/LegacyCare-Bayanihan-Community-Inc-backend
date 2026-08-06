@@ -32,11 +32,9 @@ interface DecimalLike {
   toNumber(): number;
 }
 
-interface EarningGroupRecord {
+interface EarningRecord {
   memberId: string;
-  _sum: {
-    amount: DecimalLike | null;
-  };
+  amount: DecimalLike;
 }
 
 interface RankedMemberRecord {
@@ -63,15 +61,10 @@ function decimal(value: number): DecimalLike {
   };
 }
 
-function createEarningGroup(
-  memberId: string,
-  totalEarnings: number,
-): EarningGroupRecord {
+function createEarning(memberId: string, totalEarnings: number): EarningRecord {
   return {
     memberId,
-    _sum: {
-      amount: decimal(totalEarnings),
-    },
+    amount: decimal(totalEarnings),
   };
 }
 
@@ -92,15 +85,17 @@ function createRankedMember(
 }
 
 describe('MemberDashboardService top performers', () => {
-  const groupBy = jest.fn<(input: unknown) => Promise<EarningGroupRecord[]>>();
-  const findMany = jest.fn<(input: unknown) => Promise<RankedMemberRecord[]>>();
+  const earningFindMany =
+    jest.fn<(input: unknown) => Promise<EarningRecord[]>>();
+  const memberFindMany =
+    jest.fn<(input: unknown) => Promise<RankedMemberRecord[]>>();
 
   const prisma = {
     memberEarning: {
-      groupBy,
+      findMany: earningFindMany,
     },
     member: {
-      findMany,
+      findMany: memberFindMany,
     },
   };
 
@@ -112,8 +107,8 @@ describe('MemberDashboardService top performers', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(NOW);
-    groupBy.mockReset();
-    findMany.mockReset();
+    earningFindMany.mockReset();
+    memberFindMany.mockReset();
   });
 
   afterEach(() => {
@@ -121,16 +116,15 @@ describe('MemberDashboardService top performers', () => {
   });
 
   it('sums completed earnings in the current Manila month by default', async () => {
-    groupBy.mockResolvedValue([createEarningGroup('member-1', 18400.5)]);
-    findMany.mockResolvedValue([createRankedMember()]);
+    earningFindMany.mockResolvedValue([createEarning('member-1', 18400.5)]);
+    memberFindMany.mockResolvedValue([createRankedMember()]);
 
     const result = await service.getTopPerformers();
 
     const monthStart = new Date('2026-07-31T16:00:00.000Z');
     const monthEnd = new Date('2026-08-31T16:00:00.000Z');
 
-    expect(groupBy).toHaveBeenCalledWith({
-      by: ['memberId'],
+    expect(earningFindMany).toHaveBeenCalledWith({
       where: {
         status: MemberEarningStatus.COMPLETED,
         type: {
@@ -144,12 +138,13 @@ describe('MemberDashboardService top performers', () => {
           lt: monthEnd,
         },
       },
-      _sum: {
+      select: {
+        memberId: true,
         amount: true,
       },
     });
 
-    expect(findMany).toHaveBeenCalledWith({
+    expect(memberFindMany).toHaveBeenCalledWith({
       where: {
         id: {
           in: ['member-1'],
@@ -190,14 +185,14 @@ describe('MemberDashboardService top performers', () => {
   });
 
   it('uses the current Manila calendar year', async () => {
-    groupBy.mockResolvedValue([]);
+    earningFindMany.mockResolvedValue([]);
 
     await service.getTopPerformers('year');
 
     const yearStart = new Date('2025-12-31T16:00:00.000Z');
     const yearEnd = new Date('2026-12-31T16:00:00.000Z');
 
-    expect(groupBy).toHaveBeenCalledWith(
+    expect(earningFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           earnedAt: {
@@ -207,16 +202,15 @@ describe('MemberDashboardService top performers', () => {
         }),
       }),
     );
-    expect(findMany).not.toHaveBeenCalled();
+    expect(memberFindMany).not.toHaveBeenCalled();
   });
 
   it('does not apply a date range to all-time earnings', async () => {
-    groupBy.mockResolvedValue([]);
+    earningFindMany.mockResolvedValue([]);
 
     const result = await service.getTopPerformers('all-time');
 
-    expect(groupBy).toHaveBeenCalledWith({
-      by: ['memberId'],
+    expect(earningFindMany).toHaveBeenCalledWith({
       where: {
         status: MemberEarningStatus.COMPLETED,
         type: {
@@ -226,22 +220,23 @@ describe('MemberDashboardService top performers', () => {
           status: MemberStatus.ACTIVE,
         },
       },
-      _sum: {
+      select: {
+        memberId: true,
         amount: true,
       },
     });
     expect(result.performers).toEqual([]);
     expect(result.totalMembers).toBe(0);
-    expect(findMany).not.toHaveBeenCalled();
+    expect(memberFindMany).not.toHaveBeenCalled();
   });
 
   it('sorts by money, breaks ties deterministically, and returns only ten', async () => {
     const earningGroups = Array.from({ length: 12 }, (_, index) =>
-      createEarningGroup(`member-${index + 1}`, 12000 - index * 500),
+      createEarning(`member-${index + 1}`, 12000 - index * 500),
     );
-    earningGroups[0] = createEarningGroup('member-b', 12000);
-    earningGroups[1] = createEarningGroup('member-a', 12000);
-    earningGroups.push(createEarningGroup('member-zero', 0));
+    earningGroups[0] = createEarning('member-b', 12000);
+    earningGroups[1] = createEarning('member-a', 12000);
+    earningGroups.push(createEarning('member-zero', 0));
 
     const members = earningGroups
       .filter((group) => group.memberId !== 'member-zero')
@@ -259,8 +254,8 @@ describe('MemberDashboardService top performers', () => {
         }),
       );
 
-    groupBy.mockResolvedValue(earningGroups);
-    findMany.mockResolvedValue(members.reverse());
+    earningFindMany.mockResolvedValue(earningGroups);
+    memberFindMany.mockResolvedValue(members.reverse());
 
     const result = await service.getTopPerformers('all-time');
 
@@ -280,7 +275,7 @@ describe('MemberDashboardService top performers', () => {
       BadRequestException,
     );
 
-    expect(groupBy).not.toHaveBeenCalled();
-    expect(findMany).not.toHaveBeenCalled();
+    expect(earningFindMany).not.toHaveBeenCalled();
+    expect(memberFindMany).not.toHaveBeenCalled();
   });
 });

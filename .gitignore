@@ -32,3 +32,6 @@ yarn-error.log*
 vercel-runtime-logs*.json
 .vercel
 .env*
+
+# Local database backups
+/database-backups/
