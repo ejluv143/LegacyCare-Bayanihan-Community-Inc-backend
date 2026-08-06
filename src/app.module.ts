@@ -9,6 +9,7 @@ import { BeneficiaryModule } from './beneficiary/beneficiary.module';
 import { DigitalIdModule } from './digital-id/digital-id.module';
 import { MemberDashboardModule } from './member/member-dashboard.module';
 import { ProfileModule } from './profile/profile.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { SatelliteModule } from './satellite/satellite.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { SatelliteModule } from './satellite/satellite.module';
     MemberDashboardModule,
     DigitalIdModule,
     ProfileModule,
+    NotificationsModule,
     SatelliteModule,
   ],
   controllers: [AppController],
