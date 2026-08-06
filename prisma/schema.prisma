@@ -30,6 +30,18 @@ enum MemberStatus {
   DISABLED
 }
 
+enum MemberEarningType {
+  PAIRING_INCOME
+  REFERRAL_COMMISSION
+  GROUP_COMMISSION
+}
+
+enum MemberEarningStatus {
+  PENDING
+  COMPLETED
+  REVERSED
+}
+
 enum NotificationType {
   INFO
   ALERT
@@ -169,6 +181,7 @@ model Member {
 
   beneficiaries Beneficiary[]
   notifications Notification[]
+  earnings      MemberEarning[]
 
   redeemedGeneratedCodes GeneratedCode[] @relation("GeneratedCodeUsedByMember")
 
@@ -189,6 +202,26 @@ model Member {
   @@index([memberSince])
   @@index([createdAt])
   @@map("members")
+}
+
+model MemberEarning {
+  id String @id @default(uuid()) @db.Char(36)
+
+  memberId String @map("member_id") @db.Char(36)
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  type   MemberEarningType
+  status MemberEarningStatus @default(COMPLETED)
+  amount Decimal             @db.Decimal(14, 2)
+
+  earnedAt  DateTime @map("earned_at") @db.DateTime(3)
+  sourceKey String   @unique @map("source_key") @db.VarChar(191)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([status, earnedAt, memberId])
+  @@index([memberId, status, earnedAt])
+  @@map("member_earnings")
 }
 
 model Notification {

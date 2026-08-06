@@ -8,7 +8,12 @@ import {
   jest,
 } from '@jest/globals';
 
-import { MemberStatus, MembershipType } from '../generated/prisma/enums';
+import {
+  MemberEarningStatus,
+  MemberEarningType,
+  MemberStatus,
+  MembershipType,
+} from '../generated/prisma/enums';
 
 import type { PrismaService } from '../admin/database/prisma/prisma.service';
 import type { MembersService } from '../members/members.service';
@@ -23,6 +28,17 @@ jest.mock('../members/members.service', () => ({
 
 import { MemberDashboardService } from './member-dashboard.service';
 
+interface DecimalLike {
+  toNumber(): number;
+}
+
+interface EarningGroupRecord {
+  memberId: string;
+  _sum: {
+    amount: DecimalLike | null;
+  };
+}
+
 interface RankedMemberRecord {
   id: string;
   membershipId: string;
@@ -32,12 +48,32 @@ interface RankedMemberRecord {
   profilePhoto: string | null;
   membershipType: MembershipType;
   status: MemberStatus;
-  _count: {
-    referredMembers: number;
-  };
 }
 
 const NOW = new Date('2026-08-06T04:30:00.000Z');
+const EARNING_TYPES = [
+  MemberEarningType.PAIRING_INCOME,
+  MemberEarningType.REFERRAL_COMMISSION,
+  MemberEarningType.GROUP_COMMISSION,
+];
+
+function decimal(value: number): DecimalLike {
+  return {
+    toNumber: () => value,
+  };
+}
+
+function createEarningGroup(
+  memberId: string,
+  totalEarnings: number,
+): EarningGroupRecord {
+  return {
+    memberId,
+    _sum: {
+      amount: decimal(totalEarnings),
+    },
+  };
+}
 
 function createRankedMember(
   overrides: Partial<RankedMemberRecord> = {},
@@ -51,17 +87,18 @@ function createRankedMember(
     profilePhoto: null,
     membershipType: MembershipType.BASIC,
     status: MemberStatus.ACTIVE,
-    _count: {
-      referredMembers: 1,
-    },
     ...overrides,
   };
 }
 
 describe('MemberDashboardService top performers', () => {
+  const groupBy = jest.fn<(input: unknown) => Promise<EarningGroupRecord[]>>();
   const findMany = jest.fn<(input: unknown) => Promise<RankedMemberRecord[]>>();
 
   const prisma = {
+    memberEarning: {
+      groupBy,
+    },
     member: {
       findMany,
     },
@@ -75,6 +112,7 @@ describe('MemberDashboardService top performers', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(NOW);
+    groupBy.mockReset();
     findMany.mockReset();
   });
 
@@ -82,44 +120,41 @@ describe('MemberDashboardService top performers', () => {
     jest.useRealTimers();
   });
 
-  it('uses the current Manila month and activation time by default', async () => {
-    findMany.mockResolvedValue([
-      createRankedMember({
-        _count: {
-          referredMembers: 3,
-        },
-      }),
-    ]);
+  it('sums completed earnings in the current Manila month by default', async () => {
+    groupBy.mockResolvedValue([createEarningGroup('member-1', 18400.5)]);
+    findMany.mockResolvedValue([createRankedMember()]);
 
     const result = await service.getTopPerformers();
 
     const monthStart = new Date('2026-07-31T16:00:00.000Z');
     const monthEnd = new Date('2026-08-31T16:00:00.000Z');
-    const activeReferralWhere = {
-      status: MemberStatus.ACTIVE,
-      OR: [
-        {
-          activatedAt: {
-            gte: monthStart,
-            lt: monthEnd,
-          },
+
+    expect(groupBy).toHaveBeenCalledWith({
+      by: ['memberId'],
+      where: {
+        status: MemberEarningStatus.COMPLETED,
+        type: {
+          in: EARNING_TYPES,
         },
-        {
-          activatedAt: null,
-          createdAt: {
-            gte: monthStart,
-            lt: monthEnd,
-          },
+        member: {
+          status: MemberStatus.ACTIVE,
         },
-      ],
-    };
+        earnedAt: {
+          gte: monthStart,
+          lt: monthEnd,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
 
     expect(findMany).toHaveBeenCalledWith({
       where: {
-        status: MemberStatus.ACTIVE,
-        referredMembers: {
-          some: activeReferralWhere,
+        id: {
+          in: ['member-1'],
         },
+        status: MemberStatus.ACTIVE,
       },
       select: {
         id: true,
@@ -130,13 +165,6 @@ describe('MemberDashboardService top performers', () => {
         profilePhoto: true,
         membershipType: true,
         status: true,
-        _count: {
-          select: {
-            referredMembers: {
-              where: activeReferralWhere,
-            },
-          },
-        },
       },
     });
 
@@ -152,7 +180,7 @@ describe('MemberDashboardService top performers', () => {
           membershipType: 'basic',
           status: 'active',
           rank: 1,
-          totalReferrals: 3,
+          totalEarnings: 18400.5,
           period: 'month',
         },
       ],
@@ -162,100 +190,77 @@ describe('MemberDashboardService top performers', () => {
   });
 
   it('uses the current Manila calendar year', async () => {
-    findMany.mockResolvedValue([]);
+    groupBy.mockResolvedValue([]);
 
     await service.getTopPerformers('year');
 
     const yearStart = new Date('2025-12-31T16:00:00.000Z');
     const yearEnd = new Date('2026-12-31T16:00:00.000Z');
 
-    expect(findMany).toHaveBeenCalledWith(
+    expect(groupBy).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          status: MemberStatus.ACTIVE,
-          referredMembers: {
-            some: {
-              status: MemberStatus.ACTIVE,
-              OR: [
-                {
-                  activatedAt: {
-                    gte: yearStart,
-                    lt: yearEnd,
-                  },
-                },
-                {
-                  activatedAt: null,
-                  createdAt: {
-                    gte: yearStart,
-                    lt: yearEnd,
-                  },
-                },
-              ],
-            },
+        where: expect.objectContaining({
+          earnedAt: {
+            gte: yearStart,
+            lt: yearEnd,
           },
-        },
+        }),
       }),
     );
+    expect(findMany).not.toHaveBeenCalled();
   });
 
-  it('does not apply a date range to all-time rankings', async () => {
-    findMany.mockResolvedValue([]);
+  it('does not apply a date range to all-time earnings', async () => {
+    groupBy.mockResolvedValue([]);
 
     const result = await service.getTopPerformers('all-time');
 
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          status: MemberStatus.ACTIVE,
-          referredMembers: {
-            some: {
-              status: MemberStatus.ACTIVE,
-            },
-          },
+    expect(groupBy).toHaveBeenCalledWith({
+      by: ['memberId'],
+      where: {
+        status: MemberEarningStatus.COMPLETED,
+        type: {
+          in: EARNING_TYPES,
         },
-      }),
-    );
+        member: {
+          status: MemberStatus.ACTIVE,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
     expect(result.performers).toEqual([]);
     expect(result.totalMembers).toBe(0);
+    expect(findMany).not.toHaveBeenCalled();
   });
 
-  it('sorts deterministically, excludes zero counts, and returns only ten', async () => {
-    const rankedMembers = Array.from({ length: 12 }, (_, index) =>
-      createRankedMember({
-        id: `member-${index + 1}`,
-        membershipId: `LC-${String(index + 1).padStart(6, '0')}`,
-        firstName: `Member${index + 1}`,
-        lastName: 'Test',
-        _count: {
-          referredMembers: 12 - index,
-        },
-      }),
+  it('sorts by money, breaks ties deterministically, and returns only ten', async () => {
+    const earningGroups = Array.from({ length: 12 }, (_, index) =>
+      createEarningGroup(`member-${index + 1}`, 12000 - index * 500),
     );
+    earningGroups[0] = createEarningGroup('member-b', 12000);
+    earningGroups[1] = createEarningGroup('member-a', 12000);
+    earningGroups.push(createEarningGroup('member-zero', 0));
 
-    rankedMembers.push(
-      createRankedMember({
-        id: 'member-zero',
-        membershipId: 'LC-999999',
-        _count: {
-          referredMembers: 0,
-        },
-      }),
-    );
-    rankedMembers[0] = createRankedMember({
-      id: 'member-b',
-      membershipId: 'LC-000002',
-      _count: {
-        referredMembers: 12,
-      },
-    });
-    rankedMembers[1] = createRankedMember({
-      id: 'member-a',
-      membershipId: 'LC-000001',
-      _count: {
-        referredMembers: 12,
-      },
-    });
-    findMany.mockResolvedValue(rankedMembers);
+    const members = earningGroups
+      .filter((group) => group.memberId !== 'member-zero')
+      .map((group, index) =>
+        createRankedMember({
+          id: group.memberId,
+          membershipId:
+            group.memberId === 'member-a'
+              ? 'LC-000001'
+              : group.memberId === 'member-b'
+                ? 'LC-000002'
+                : `LC-${String(index + 10).padStart(6, '0')}`,
+          firstName: `Member${index + 1}`,
+          lastName: 'Test',
+        }),
+      );
+
+    groupBy.mockResolvedValue(earningGroups);
+    findMany.mockResolvedValue(members.reverse());
 
     const result = await service.getTopPerformers('all-time');
 
@@ -275,6 +280,7 @@ describe('MemberDashboardService top performers', () => {
       BadRequestException,
     );
 
+    expect(groupBy).not.toHaveBeenCalled();
     expect(findMany).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,8 @@ import {
 } from "@nestjs/common";
 
 import {
+  MemberEarningStatus,
+  MemberEarningType,
   MemberStatus,
   MembershipType,
 } from "../generated/prisma/enums";
@@ -110,6 +112,11 @@ const TOP_PERFORMERS_PERIODS: TopPerformersPeriod[] = [
   "month",
   "year",
   "all-time",
+];
+const TOP_PERFORMER_EARNING_TYPES: MemberEarningType[] = [
+  MemberEarningType.PAIRING_INCOME,
+  MemberEarningType.REFERRAL_COMMISSION,
+  MemberEarningType.GROUP_COMMISSION,
 ];
 
 interface TopPerformersPeriodRange {
@@ -318,36 +325,26 @@ function getTopPerformersPeriodRange(
   };
 }
 
-function createActiveReferralWhere(
+function createCompletedEarningWhere(
   period: TopPerformersPeriod,
   now: Date,
-): Prisma.MemberWhereInput {
-  const periodRange =
-    getTopPerformersPeriodRange(
-      period,
-      now,
-    );
+): Prisma.MemberEarningWhereInput {
+  const periodRange = getTopPerformersPeriodRange(period, now);
 
   return {
-    status: MemberStatus.ACTIVE,
-
+    status: MemberEarningStatus.COMPLETED,
+    type: {
+      in: TOP_PERFORMER_EARNING_TYPES,
+    },
+    member: {
+      status: MemberStatus.ACTIVE,
+    },
     ...(periodRange
       ? {
-          OR: [
-            {
-              activatedAt: {
-                gte: periodRange.start,
-                lt: periodRange.end,
-              },
-            },
-            {
-              activatedAt: null,
-              createdAt: {
-                gte: periodRange.start,
-                lt: periodRange.end,
-              },
-            },
-          ],
+          earnedAt: {
+            gte: periodRange.start,
+            lt: periodRange.end,
+          },
         }
       : {}),
   };
@@ -480,48 +477,55 @@ export class MemberDashboardService {
 
     const period = requestedPeriod as TopPerformersPeriod;
     const now = new Date();
-    const activeReferralWhere =
-      createActiveReferralWhere(
-        period,
-        now,
-      );
-
-    const members = await this.prisma.member.findMany({
-      where: {
-        status: MemberStatus.ACTIVE,
-        referredMembers: {
-          some: activeReferralWhere,
-        },
-      },
-      select: {
-        id: true,
-        membershipId: true,
-        firstName: true,
-        middleName: true,
-        lastName: true,
-        profilePhoto: true,
-        membershipType: true,
-        status: true,
-        _count: {
-          select: {
-            referredMembers: {
-              where: activeReferralWhere,
-            },
-          },
-        },
+    const earningsByMember = await this.prisma.memberEarning.groupBy({
+      by: ["memberId"],
+      where: createCompletedEarningWhere(period, now),
+      _sum: {
+        amount: true,
       },
     });
+
+    const totalEarningsByMemberId = new Map(
+      earningsByMember
+        .map((earning) => [
+          earning.memberId,
+          earning._sum.amount?.toNumber() ?? 0,
+        ] as const)
+        .filter(([, totalEarnings]) => totalEarnings > 0),
+    );
+
+    const members =
+      totalEarningsByMemberId.size === 0
+        ? []
+        : await this.prisma.member.findMany({
+            where: {
+              id: {
+                in: [...totalEarningsByMemberId.keys()],
+              },
+              status: MemberStatus.ACTIVE,
+            },
+            select: {
+              id: true,
+              membershipId: true,
+              firstName: true,
+              middleName: true,
+              lastName: true,
+              profilePhoto: true,
+              membershipType: true,
+              status: true,
+            },
+          });
 
     const rankedMembers = members
       .map((member) => ({
         member,
-        totalReferrals:
-          member._count.referredMembers,
+        totalEarnings:
+          totalEarningsByMemberId.get(member.id) ?? 0,
       }))
-      .filter(({ totalReferrals }) => totalReferrals > 0)
+      .filter(({ totalEarnings }) => totalEarnings > 0)
       .sort(
         (left, right) =>
-          right.totalReferrals - left.totalReferrals ||
+          right.totalEarnings - left.totalEarnings ||
           left.member.membershipId.localeCompare(
             right.member.membershipId,
           ) ||
@@ -530,7 +534,7 @@ export class MemberDashboardService {
 
     const performers: TopPerformerDto[] = rankedMembers
       .slice(0, TOP_PERFORMERS_LIMIT)
-      .map(({ member, totalReferrals }, index) => ({
+      .map(({ member, totalEarnings }, index) => ({
         id: member.id,
         membershipId: member.membershipId,
         fullName: createFullName(
@@ -542,7 +546,7 @@ export class MemberDashboardService {
         membershipType: mapMembershipType(member.membershipType),
         status: mapMemberStatus(member.status),
         rank: index + 1,
-        totalReferrals,
+        totalEarnings,
         period,
       }));
 

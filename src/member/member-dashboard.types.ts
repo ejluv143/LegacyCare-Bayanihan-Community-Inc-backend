@@ -21,7 +21,7 @@ export interface TopPerformerDto {
   membershipType: FrontendMembershipType;
   status: FrontendMemberStatus;
   rank: number;
-  totalReferrals: number;
+  totalEarnings: number;
   period: TopPerformersPeriod;
 }
 
