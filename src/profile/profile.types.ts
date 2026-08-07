@@ -1,25 +1,17 @@
-import {
-  MemberStatus,
-  MembershipType,
-} from '../generated/prisma/client';
+import { MemberStatus, MembershipType } from '../generated/prisma/client';
 
 /* =========================================================
    PROFILE MEMBERSHIP TYPE
 ========================================================= */
 
-export type ProfileMembershipType =
-  | 'basic'
-  | 'premium';
+export type ProfileMembershipType = 'basic' | 'premium';
 
 /* =========================================================
    PROFILE MEMBER STATUS
 ========================================================= */
 
 export type ProfileMemberStatus =
-  | 'active'
-  | 'pending'
-  | 'suspended'
-  | 'inactive';
+  'active' | 'pending' | 'suspended' | 'inactive';
 
 /* =========================================================
    PROFILE MEMBERSHIP RESPONSE
@@ -28,14 +20,11 @@ export type ProfileMemberStatus =
 export interface ProfileMembershipResponse {
   membershipId: string;
 
-  membershipType:
-    ProfileMembershipType;
+  membershipType: ProfileMembershipType;
 
-  memberSince:
-    string | null;
+  memberSince: string | null;
 
-  status:
-    ProfileMemberStatus;
+  status: ProfileMemberStatus;
 }
 
 /* =========================================================
@@ -51,8 +40,7 @@ export interface ProfileResponse {
 
   firstName: string;
 
-  middleName:
-    string | null;
+  middleName: string | null;
 
   lastName: string;
 
@@ -64,18 +52,15 @@ export interface ProfileResponse {
      PERSONAL INFORMATION
   ======================================================= */
 
-  address:
-    string | null;
+  address: string | null;
 
-  dateOfBirth:
-    string | null;
+  dateOfBirth: string | null;
 
   /* =======================================================
      CONTACT INFORMATION
   ======================================================= */
 
-  email:
-    string | null;
+  email: string | null;
 
   phone: string;
 
@@ -83,15 +68,13 @@ export interface ProfileResponse {
      PROFILE PHOTO
   ======================================================= */
 
-  profilePhoto:
-    string | null;
+  profilePhoto: string | null;
 
   /* =======================================================
      MEMBERSHIP INFORMATION
   ======================================================= */
 
-  membership:
-    ProfileMembershipResponse;
+  membership: ProfileMembershipResponse;
 }
 
 /* =========================================================

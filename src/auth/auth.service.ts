@@ -2,72 +2,53 @@ import {
   ForbiddenException,
   Injectable,
   UnauthorizedException,
-} from "@nestjs/common";
+} from '@nestjs/common';
 
-import {
-  ConfigService,
-} from "@nestjs/config";
+import { ConfigService } from '@nestjs/config';
 
-import {
-  JwtService,
-} from "@nestjs/jwt";
+import { JwtService } from '@nestjs/jwt';
 
-import * as argon2 from "argon2";
+import * as argon2 from 'argon2';
 
 import {
   MemberStatus,
   MembershipType,
   SatelliteAccountStatus,
   SatelliteStatus,
-} from "../generated/prisma/client";
+} from '../generated/prisma/client';
 
-import {
-  PrismaService,
-} from "../admin/database/prisma/prisma.service";
+import { PrismaService } from '../admin/database/prisma/prisma.service';
 
-import {
-  MembersService,
-} from "../members/members.service";
+import { MembersService } from '../members/members.service';
 
-import {
-  LoginDto,
-} from "./dto/login.dto";
+import { LoginDto } from './dto/login.dto';
 
-import {
-  RegisterMemberDto,
-} from "./dto/register-member.dto";
+import { RegisterMemberDto } from './dto/register-member.dto';
 
 /* =========================================================
    FRONTEND TYPES
 ========================================================= */
 
-type FrontendMemberStatus =
-  | "active"
-  | "suspended"
-  | "inactive";
+type FrontendMemberStatus = 'active' | 'suspended' | 'inactive';
 
-type FrontendMembershipType =
-  | "basic"
-  | "premium";
+type FrontendMembershipType = 'basic' | 'premium';
 
 /* =========================================================
    MEMBER STATUS MAPPER
 ========================================================= */
 
-function mapMemberStatus(
-  status: MemberStatus,
-): FrontendMemberStatus {
+function mapMemberStatus(status: MemberStatus): FrontendMemberStatus {
   switch (status) {
     case MemberStatus.SUSPENDED:
-      return "suspended";
+      return 'suspended';
 
     case MemberStatus.DISABLED:
-      return "inactive";
+      return 'inactive';
 
     case MemberStatus.ACTIVE:
     case MemberStatus.PENDING_ACTIVATION:
     default:
-      return "active";
+      return 'active';
   }
 }
 
@@ -76,16 +57,15 @@ function mapMemberStatus(
 ========================================================= */
 
 function mapMembershipType(
-  membershipType:
-    MembershipType,
+  membershipType: MembershipType,
 ): FrontendMembershipType {
   switch (membershipType) {
     case MembershipType.PREMIUM:
-      return "premium";
+      return 'premium';
 
     case MembershipType.BASIC:
     default:
-      return "basic";
+      return 'basic';
   }
 }
 
@@ -95,24 +75,12 @@ function mapMembershipType(
 
 function buildFullName(
   firstName: string,
-  middleName:
-    | string
-    | null
-    | undefined,
+  middleName: string | null | undefined,
   lastName: string,
 ): string {
-  return [
-    firstName.trim(),
-    middleName?.trim(),
-    lastName.trim(),
-  ]
-    .filter(
-      (
-        value,
-      ): value is string =>
-        Boolean(value),
-    )
-    .join(" ");
+  return [firstName.trim(), middleName?.trim(), lastName.trim()]
+    .filter((value): value is string => Boolean(value))
+    .join(' ');
 }
 
 /* =========================================================
@@ -122,77 +90,54 @@ function buildFullName(
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma:
-      PrismaService,
+    private readonly prisma: PrismaService,
 
-    private readonly membersService:
-      MembersService,
+    private readonly membersService: MembersService,
 
-    private readonly jwtService:
-      JwtService,
+    private readonly jwtService: JwtService,
 
-    private readonly configService:
-      ConfigService,
+    private readonly configService: ConfigService,
   ) {}
 
   /* =======================================================
      REGISTER MEMBER
   ======================================================= */
 
-  async register(
-    dto: RegisterMemberDto,
-  ) {
-    const member =
-      await this.membersService.createMember({
-        firstName:
-          dto.firstName,
+  async register(dto: RegisterMemberDto) {
+    const member = await this.membersService.createMember({
+      firstName: dto.firstName,
 
-        middleName:
-          dto.middleName,
+      middleName: dto.middleName,
 
-        lastName:
-          dto.lastName,
+      lastName: dto.lastName,
 
-        address:
-          dto.address,
+      address: dto.address,
 
-        dateOfBirth:
-          dto.dateOfBirth,
+      dateOfBirth: dto.dateOfBirth,
 
-        email:
-          dto.email,
+      email: dto.email,
 
-        phone:
-          dto.phone,
+      phone: dto.phone,
 
-        membershipType:
-          dto.membershipType,
+      membershipType: dto.membershipType,
 
-        activationCode:
-          dto.activationCode,
+      activationCode: dto.activationCode,
 
-        sponsorReferralCode:
-          dto.referralCode,
+      sponsorReferralCode: dto.referralCode,
 
-        username:
-          dto.username,
+      username: dto.username,
 
-        password:
-          dto.password,
+      password: dto.password,
 
-        confirmPassword:
-          dto.confirmPassword,
-      });
+      confirmPassword: dto.confirmPassword,
+    });
 
     return {
-      success:
-        true,
+      success: true,
 
-      message:
-        "Registration completed successfully. You may now sign in.",
+      message: 'Registration completed successfully. You may now sign in.',
 
-      user:
-        member,
+      user: member,
     };
   }
 
@@ -200,23 +145,17 @@ export class AuthService {
      LOGIN
   ======================================================= */
 
-  async login(
-    dto: LoginDto,
-  ) {
-    const username =
-      dto.username
-        .trim()
-        .toLowerCase();
+  async login(dto: LoginDto) {
+    const username = dto.username.trim().toLowerCase();
 
     /* =====================================================
        TEMPORARY ADMIN
     ===================================================== */
 
-    const temporaryAdminResult =
-      await this.tryTemporaryAdminLogin(
-        username,
-        dto.password,
-      );
+    const temporaryAdminResult = await this.tryTemporaryAdminLogin(
+      username,
+      dto.password,
+    );
 
     if (temporaryAdminResult) {
       return temporaryAdminResult;
@@ -226,234 +165,160 @@ export class AuthService {
        SATELLITE ACCOUNT
     ===================================================== */
 
-    const satelliteAccount =
-      await this.prisma.satelliteAccount.findUnique({
-        where: {
-          username,
-        },
+    const satelliteAccount = await this.prisma.satelliteAccount.findUnique({
+      where: {
+        username,
+      },
 
-        select: {
-          id:
-            true,
+      select: {
+        id: true,
 
-          satelliteId:
-            true,
+        satelliteId: true,
 
-          username:
-            true,
+        username: true,
 
-          passwordHash:
-            true,
+        passwordHash: true,
 
-          role:
-            true,
+        role: true,
 
-          status:
-            true,
+        status: true,
 
-          mustChangePassword:
-            true,
+        mustChangePassword: true,
 
-          createdAt:
-            true,
+        createdAt: true,
 
-          updatedAt:
-            true,
+        updatedAt: true,
 
-          satellite: {
-            select: {
-              id:
-                true,
+        satellite: {
+          select: {
+            id: true,
 
-              satelliteCode:
-                true,
+            satelliteCode: true,
 
-              satelliteName:
-                true,
+            satelliteName: true,
 
-              status:
-                true,
+            status: true,
 
-              manager: {
-                select: {
-                  firstName:
-                    true,
+            manager: {
+              select: {
+                firstName: true,
 
-                  middleName:
-                    true,
+                middleName: true,
 
-                  lastName:
-                    true,
+                lastName: true,
 
-                  email:
-                    true,
+                email: true,
 
-                  contactNumber:
-                    true,
-                },
+                contactNumber: true,
               },
             },
           },
         },
-      });
+      },
+    });
 
     if (satelliteAccount) {
-      return this.loginSatelliteAccount(
-        satelliteAccount,
-        dto.password,
-      );
+      return this.loginSatelliteAccount(satelliteAccount, dto.password);
     }
 
     /* =====================================================
        NORMAL MEMBER
     ===================================================== */
 
-    return this.loginMember(
-      username,
-      dto.password,
-    );
+    return this.loginMember(username, dto.password);
   }
 
   /* =======================================================
      TEMPORARY ADMIN LOGIN
   ======================================================= */
 
-  private async tryTemporaryAdminLogin(
-    username: string,
-    password: string,
-  ) {
+  private async tryTemporaryAdminLogin(username: string, password: string) {
     const enabled =
       this.configService
-        .get<string>(
-          "TEMP_ADMIN_ENABLED",
-        )
+        .get<string>('TEMP_ADMIN_ENABLED')
         ?.trim()
-        .toLowerCase() ===
-      "true";
+        .toLowerCase() === 'true';
 
-    const configuredUsername =
-      this.configService
-        .get<string>(
-          "TEMP_ADMIN_USERNAME",
-        )
-        ?.trim()
-        .toLowerCase();
+    const configuredUsername = this.configService
+      .get<string>('TEMP_ADMIN_USERNAME')
+      ?.trim()
+      .toLowerCase();
 
-    const configuredPassword =
-      this.configService.get<string>(
-        "TEMP_ADMIN_PASSWORD",
-      );
+    const configuredPassword = this.configService.get<string>(
+      'TEMP_ADMIN_PASSWORD',
+    );
 
-    if (
-      !enabled ||
-      !configuredUsername ||
-      username !==
-        configuredUsername
-    ) {
+    if (!enabled || !configuredUsername || username !== configuredUsername) {
       return null;
     }
 
-    if (
-      !configuredPassword ||
-      password !==
-        configuredPassword
-    ) {
-      throw new UnauthorizedException(
-        "The username or password is incorrect.",
-      );
+    if (!configuredPassword || password !== configuredPassword) {
+      throw new UnauthorizedException('The username or password is incorrect.');
     }
 
-    const membershipId =
-      "ADMIN-TEMP-001";
+    const membershipId = 'ADMIN-TEMP-001';
 
-    const token =
-      await this.jwtService.signAsync({
-        sub:
-          "temporary-admin",
+    const token = await this.jwtService.signAsync({
+      sub: 'temporary-admin',
 
-        membershipId,
+      membershipId,
 
-        username:
-          configuredUsername,
+      username: configuredUsername,
 
-        role:
-          "admin",
+      role: 'admin',
 
-        accountType:
-          "admin",
-      });
+      accountType: 'admin',
+    });
 
-    const currentDate =
-      new Date().toISOString();
+    const currentDate = new Date().toISOString();
 
     return {
-      success:
-        true,
+      success: true,
 
-      message:
-        "Administrator signed in successfully.",
+      message: 'Administrator signed in successfully.',
 
       token,
 
       user: {
-        id:
-          "temporary-admin",
+        id: 'temporary-admin',
 
         membershipId,
 
-        firstName:
-          "Legacy Care",
+        firstName: 'Legacy Care',
 
-        middleName:
-          null,
+        middleName: null,
 
-        lastName:
-          "Administrator",
+        lastName: 'Administrator',
 
-        fullName:
-          "Legacy Care Administrator",
+        fullName: 'Legacy Care Administrator',
 
-        username:
-          configuredUsername,
+        username: configuredUsername,
 
         email:
-          this.configService.get<string>(
-            "TEMP_ADMIN_EMAIL",
-          ) ??
-          "admin@legacycare.local",
+          this.configService.get<string>('TEMP_ADMIN_EMAIL') ??
+          'admin@legacycare.local',
 
-        phone:
-          null,
+        phone: null,
 
-        membershipType:
-          "basic" as const,
+        membershipType: 'basic' as const,
 
-        referralCode:
-          null,
+        referralCode: null,
 
-        role:
-          "admin" as const,
+        role: 'admin' as const,
 
-        accountType:
-          "admin" as const,
+        accountType: 'admin' as const,
 
-        status:
-          "active" as const,
+        status: 'active' as const,
 
-        emailVerified:
-          true,
+        emailVerified: true,
 
-        activated:
-          true,
+        activated: true,
 
-        mustChangePassword:
-          false,
+        mustChangePassword: false,
 
-        createdAt:
-          currentDate,
+        createdAt: currentDate,
 
-        updatedAt:
-          currentDate,
+        updatedAt: currentDate,
       },
     };
   }
@@ -474,11 +339,9 @@ export class AuthService {
 
       role: string;
 
-      status:
-        SatelliteAccountStatus;
+      status: SatelliteAccountStatus;
 
-      mustChangePassword:
-        boolean;
+      mustChangePassword: boolean;
 
       createdAt: Date;
 
@@ -491,19 +354,16 @@ export class AuthService {
 
         satelliteName: string;
 
-        status:
-          SatelliteStatus;
+        status: SatelliteStatus;
 
         manager: {
           firstName: string;
 
-          middleName:
-            string | null;
+          middleName: string | null;
 
           lastName: string;
 
-          email:
-            string | null;
+          email: string | null;
 
           contactNumber: string;
         } | null;
@@ -511,124 +371,83 @@ export class AuthService {
     },
     password: string,
   ) {
-    const passwordMatches =
-      await this.verifyPassword(
-        satelliteAccount.passwordHash,
-        password,
-      );
+    const passwordMatches = await this.verifyPassword(
+      satelliteAccount.passwordHash,
+      password,
+    );
 
     if (!passwordMatches) {
-      throw new UnauthorizedException(
-        "The username or password is incorrect.",
-      );
+      throw new UnauthorizedException('The username or password is incorrect.');
     }
 
-    if (
-      satelliteAccount.status !==
-      SatelliteAccountStatus.ACTIVE
-    ) {
+    if (satelliteAccount.status !== SatelliteAccountStatus.ACTIVE) {
       throw new ForbiddenException(
-        "Your satellite account is not active. Please contact the administrator.",
+        'Your satellite account is not active. Please contact the administrator.',
       );
     }
 
-    if (
-      satelliteAccount.satellite.status !==
-      SatelliteStatus.ACTIVE
-    ) {
+    if (satelliteAccount.satellite.status !== SatelliteStatus.ACTIVE) {
       throw new ForbiddenException(
-        "This satellite office is not active. Please contact the administrator.",
+        'This satellite office is not active. Please contact the administrator.',
       );
     }
 
-    const manager =
-      satelliteAccount.satellite.manager;
+    const manager = satelliteAccount.satellite.manager;
 
-    const firstName =
-      manager?.firstName ??
-      "Satellite";
+    const firstName = manager?.firstName ?? 'Satellite';
 
-    const middleName =
-      manager?.middleName ??
-      null;
+    const middleName = manager?.middleName ?? null;
 
-    const lastName =
-      manager?.lastName ??
-      "Administrator";
+    const lastName = manager?.lastName ?? 'Administrator';
 
-    const fullName =
-      buildFullName(
-        firstName,
-        middleName,
-        lastName,
-      );
+    const fullName = buildFullName(firstName, middleName, lastName);
 
-    const token =
-      await this.jwtService.signAsync({
-        sub:
-          satelliteAccount.id,
+    const token = await this.jwtService.signAsync({
+      sub: satelliteAccount.id,
 
-        satelliteId:
-          satelliteAccount.satelliteId,
+      satelliteId: satelliteAccount.satelliteId,
 
-        satelliteCode:
-          satelliteAccount.satellite
-            .satelliteCode,
+      satelliteCode: satelliteAccount.satellite.satelliteCode,
 
-        username:
-          satelliteAccount.username,
+      username: satelliteAccount.username,
 
-        role:
-          "satellite-admin",
+      role: 'satellite-admin',
 
-        accountType:
-          "satellite",
-      });
+      accountType: 'satellite',
+    });
 
     await this.prisma.satelliteAccount.update({
       where: {
-        id:
-          satelliteAccount.id,
+        id: satelliteAccount.id,
       },
 
       data: {
-        lastLoginAt:
-          new Date(),
+        lastLoginAt: new Date(),
       },
     });
 
     return {
-      success:
-        true,
+      success: true,
 
-      message:
-        "Satellite account signed in successfully.",
+      message: 'Satellite account signed in successfully.',
 
       token,
 
       user: {
-        id:
-          satelliteAccount.id,
+        id: satelliteAccount.id,
 
-        satelliteId:
-          satelliteAccount.satelliteId,
+        satelliteId: satelliteAccount.satelliteId,
 
-        satelliteCode:
-          satelliteAccount.satellite
-            .satelliteCode,
+        satelliteCode: satelliteAccount.satellite.satelliteCode,
 
-        satelliteName:
-          satelliteAccount.satellite
-            .satelliteName,
+        satelliteName: satelliteAccount.satellite.satelliteName,
 
         /*
          * Kept for compatibility with frontend
          * user types that require membershipId.
          */
 
-        membershipId:
-          satelliteAccount.satellite
-            .satelliteCode,
+        membershipId: satelliteAccount.satellite.satelliteCode,
 
         firstName,
 
@@ -638,47 +457,31 @@ export class AuthService {
 
         fullName,
 
-        username:
-          satelliteAccount.username,
+        username: satelliteAccount.username,
 
-        email:
-          manager?.email ??
-          null,
+        email: manager?.email ?? null,
 
-        phone:
-          manager?.contactNumber ??
-          null,
+        phone: manager?.contactNumber ?? null,
 
-        membershipType:
-          "basic" as const,
+        membershipType: 'basic' as const,
 
-        referralCode:
-          null,
+        referralCode: null,
 
-        role:
-          "satellite-admin" as const,
+        role: 'satellite-admin' as const,
 
-        accountType:
-          "satellite" as const,
+        accountType: 'satellite' as const,
 
-        status:
-          "active" as const,
+        status: 'active' as const,
 
-        emailVerified:
-          true,
+        emailVerified: true,
 
-        activated:
-          true,
+        activated: true,
 
-        mustChangePassword:
-          satelliteAccount
-            .mustChangePassword,
+        mustChangePassword: satelliteAccount.mustChangePassword,
 
-        createdAt:
-          satelliteAccount.createdAt.toISOString(),
+        createdAt: satelliteAccount.createdAt.toISOString(),
 
-        updatedAt:
-          satelliteAccount.updatedAt.toISOString(),
+        updatedAt: satelliteAccount.updatedAt.toISOString(),
       },
     };
   }
@@ -687,197 +490,133 @@ export class AuthService {
      MEMBER LOGIN
   ======================================================= */
 
-  private async loginMember(
-    username: string,
-    password: string,
-  ) {
-    const member =
-      await this.prisma.member.findUnique({
-        where: {
-          username,
-        },
+  private async loginMember(username: string, password: string) {
+    const member = await this.prisma.member.findUnique({
+      where: {
+        username,
+      },
 
-        select: {
-          id:
-            true,
+      select: {
+        id: true,
 
-          membershipId:
-            true,
+        membershipId: true,
 
-          firstName:
-            true,
+        firstName: true,
 
-          middleName:
-            true,
+        middleName: true,
 
-          lastName:
-            true,
+        lastName: true,
 
-          username:
-            true,
+        username: true,
 
-          email:
-            true,
+        email: true,
 
-          phone:
-            true,
+        phone: true,
 
-          passwordHash:
-            true,
+        passwordHash: true,
 
-          membershipType:
-            true,
+        membershipType: true,
 
-          status:
-            true,
+        status: true,
 
-          referralCode:
-            true,
+        referralCode: true,
 
-          createdAt:
-            true,
+        createdAt: true,
 
-          updatedAt:
-            true,
-        },
-      });
+        updatedAt: true,
+      },
+    });
 
-    if (
-      !member ||
-      !member.passwordHash
-    ) {
-      throw new UnauthorizedException(
-        "The username or password is incorrect.",
-      );
+    if (!member || !member.passwordHash) {
+      throw new UnauthorizedException('The username or password is incorrect.');
     }
 
-    const passwordMatches =
-      await this.verifyPassword(
-        member.passwordHash,
-        password,
-      );
+    const passwordMatches = await this.verifyPassword(
+      member.passwordHash,
+      password,
+    );
 
     if (!passwordMatches) {
-      throw new UnauthorizedException(
-        "The username or password is incorrect.",
-      );
+      throw new UnauthorizedException('The username or password is incorrect.');
     }
 
-    if (
-      member.status ===
-      MemberStatus.SUSPENDED
-    ) {
+    if (member.status === MemberStatus.SUSPENDED) {
       throw new ForbiddenException(
-        "Your account is suspended. Please contact Legacy Care support.",
+        'Your account is suspended. Please contact Legacy Care support.',
       );
     }
 
-    if (
-      member.status ===
-      MemberStatus.DISABLED
-    ) {
+    if (member.status === MemberStatus.DISABLED) {
       throw new ForbiddenException(
-        "Your account is disabled. Please contact Legacy Care support.",
+        'Your account is disabled. Please contact Legacy Care support.',
       );
     }
 
-    const token =
-      await this.jwtService.signAsync({
-        sub:
-          member.id,
+    const token = await this.jwtService.signAsync({
+      sub: member.id,
 
-        membershipId:
-          member.membershipId,
+      membershipId: member.membershipId,
 
-        username:
-          member.username,
+      username: member.username,
 
-        role:
-          "member",
+      role: 'member',
 
-        accountType:
-          "member",
-      });
+      accountType: 'member',
+    });
 
-    const fullName =
-      buildFullName(
-        member.firstName,
-        member.middleName,
-        member.lastName,
-      );
+    const fullName = buildFullName(
+      member.firstName,
+      member.middleName,
+      member.lastName,
+    );
 
     return {
-      success:
-        true,
+      success: true,
 
-      message:
-        "Signed in successfully.",
+      message: 'Signed in successfully.',
 
       token,
 
       user: {
-        id:
-          member.id,
+        id: member.id,
 
-        membershipId:
-          member.membershipId,
+        membershipId: member.membershipId,
 
-        firstName:
-          member.firstName,
+        firstName: member.firstName,
 
-        middleName:
-          member.middleName,
+        middleName: member.middleName,
 
-        lastName:
-          member.lastName,
+        lastName: member.lastName,
 
         fullName,
 
-        username:
-          member.username,
+        username: member.username,
 
-        email:
-          member.email,
+        email: member.email,
 
-        phone:
-          member.phone,
+        phone: member.phone,
 
-        membershipType:
-          mapMembershipType(
-            member.membershipType,
-          ),
+        membershipType: mapMembershipType(member.membershipType),
 
-        referralCode:
-          member.referralCode,
+        referralCode: member.referralCode,
 
-        role:
-          "member" as const,
+        role: 'member' as const,
 
-        accountType:
-          "member" as const,
+        accountType: 'member' as const,
 
-        status:
-          mapMemberStatus(
-            member.status,
-          ),
+        status: mapMemberStatus(member.status),
 
-        emailVerified:
-          false,
+        emailVerified: false,
 
         activated:
-          member.status ===
-            MemberStatus.ACTIVE ||
-          member.status ===
-            MemberStatus.PENDING_ACTIVATION,
+          member.status === MemberStatus.ACTIVE ||
+          member.status === MemberStatus.PENDING_ACTIVATION,
 
-        mustChangePassword:
-          false,
+        mustChangePassword: false,
 
-        createdAt:
-          member.createdAt.toISOString(),
+        createdAt: member.createdAt.toISOString(),
 
-        updatedAt:
-          member.updatedAt.toISOString(),
+        updatedAt: member.updatedAt.toISOString(),
       },
     };
   }
@@ -891,10 +630,7 @@ export class AuthService {
     password: string,
   ): Promise<boolean> {
     try {
-      return await argon2.verify(
-        passwordHash,
-        password,
-      );
+      return await argon2.verify(passwordHash, password);
     } catch {
       return false;
     }

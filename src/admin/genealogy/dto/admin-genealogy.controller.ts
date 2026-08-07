@@ -1,21 +1,14 @@
-import {
-  Controller,
-  Get,
-  Param,
-} from "@nestjs/common";
+import { Controller, Get, Param } from '@nestjs/common';
 
-import { AdminGenealogyService } from "./admin-genealogy.service";
+import { AdminGenealogyService } from './admin-genealogy.service';
 
 /* =========================================================
    CONTROLLER
 ========================================================= */
 
-@Controller("admin/genealogy")
+@Controller('admin/genealogy')
 export class AdminGenealogyController {
-  constructor(
-    private readonly adminGenealogyService:
-      AdminGenealogyService,
-  ) {}
+  constructor(private readonly adminGenealogyService: AdminGenealogyService) {}
 
   /* =======================================================
      CLIENT DIRECTORY
@@ -23,22 +16,18 @@ export class AdminGenealogyController {
 
   @Get()
   getGenealogyClients() {
-    return this.adminGenealogyService
-      .getGenealogyClients();
+    return this.adminGenealogyService.getGenealogyClients();
   }
 
   /* =======================================================
      SINGLE MEMBER TREE
   ======================================================= */
 
-  @Get(":memberId/tree")
+  @Get(':memberId/tree')
   getGenealogyTree(
-    @Param("memberId")
+    @Param('memberId')
     memberId: string,
   ) {
-    return this.adminGenealogyService
-      .getGenealogyTree(
-        memberId,
-      );
+    return this.adminGenealogyService.getGenealogyTree(memberId);
   }
 }

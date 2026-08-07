@@ -11,7 +11,9 @@ import {
   Decimal,
   PrismaClientKnownRequestError,
 } from '@prisma/client/runtime/client';
+
 import type { Prisma } from '../generated/prisma/client';
+
 import {
   GeneratedCodeCategory,
   GeneratedCodeStatus,
@@ -25,22 +27,37 @@ import {
 } from '../generated/prisma/enums';
 
 import { PrismaService } from '../admin/database/prisma/prisma.service';
+
+import { MAXIMUM_BENEFICIARIES } from '../beneficiary/beneficiary.constants';
+
 import { RedeemTopUpDto } from './dto/redeem-top-up.dto';
+
 import type {
   RedeemTopUpResponseDto,
   WalletApiTransactionDirection,
   WalletApiTransactionStatus,
   WalletApiTransactionType,
   WalletMembershipType,
+  WalletOpeningCreditAllocationDto,
+  WalletOpeningCreditAllocationSlot,
   WalletResponseDto,
   WalletSummaryDto,
   WalletTransactionDto,
 } from './wallet.types';
 
-const MAX_TRANSACTION_ATTEMPTS = 3;
-const TOP_UP_DENOMINATIONS = new Set([200, 500, 1_500]);
+import { MEMBER_OPENING_CREDIT_PROTECTED_LIFE_COUNT } from './wallet-opening-credit';
 
-class TopUpClaimChangedError extends Error {}
+const MAX_TRANSACTION_ATTEMPTS = 3;
+
+const TOP_UP_DENOMINATIONS = new Set<number>([200, 500, 1_500]);
+
+class TopUpClaimChangedError extends Error {
+  constructor() {
+    super('Top-up claim changed while processing.');
+
+    this.name = 'TopUpClaimChangedError';
+  }
+}
 
 interface WalletLedgerRecord {
   id: string;
@@ -48,8 +65,16 @@ interface WalletLedgerRecord {
   direction: WalletTransactionDirection;
   status: WalletTransactionStatus;
   amount: Decimal;
+  sourceKey: string;
   description: string | null;
   createdAt: Date;
+}
+
+interface WalletBeneficiaryRecord {
+  sequence: number;
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
 }
 
 interface WalletEarningRecord {
@@ -80,6 +105,7 @@ function mapMembershipType(value: MembershipType): WalletMembershipType {
 
 function roundMoney(value: number): number {
   const rounded = Math.round((value + Number.EPSILON) * 100) / 100;
+
   return Object.is(rounded, -0) ? 0 : rounded;
 }
 
@@ -89,8 +115,10 @@ function toSignedLedgerAmount(record: WalletLedgerRecord): Decimal {
   switch (record.direction) {
     case WalletTransactionDirection.CREDIT:
       return amount;
+
     case WalletTransactionDirection.DEBIT:
       return amount.negated();
+
     case WalletTransactionDirection.NEUTRAL:
     default:
       return new Decimal(0);
@@ -101,12 +129,21 @@ function mapLedgerType(value: WalletTransactionType): WalletApiTransactionType {
   switch (value) {
     case WalletTransactionType.OPENING_CREDIT:
       return 'opening-credit';
+
     case WalletTransactionType.TOP_UP:
       return 'top-up';
+
     case WalletTransactionType.WITHDRAWAL:
       return 'withdrawal';
+
     case WalletTransactionType.ADJUSTMENT:
       return 'adjustment';
+
+    default: {
+      const exhaustiveCheck: never = value;
+
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -114,10 +151,18 @@ function mapEarningType(value: MemberEarningType): WalletApiTransactionType {
   switch (value) {
     case MemberEarningType.PAIRING_INCOME:
       return 'pairing-income';
+
     case MemberEarningType.REFERRAL_COMMISSION:
       return 'referral-commission';
+
     case MemberEarningType.GROUP_COMMISSION:
       return 'group-commission';
+
+    default: {
+      const exhaustiveCheck: never = value;
+
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -126,14 +171,24 @@ function mapStatus(
 ): WalletApiTransactionStatus {
   switch (value) {
     case WalletTransactionStatus.PENDING:
+    case MemberEarningStatus.PENDING:
       return 'pending';
+
     case WalletTransactionStatus.FAILED:
       return 'failed';
+
     case WalletTransactionStatus.REVERSED:
+    case MemberEarningStatus.REVERSED:
       return 'reversed';
+
     case WalletTransactionStatus.COMPLETED:
-    default:
+    case MemberEarningStatus.COMPLETED:
       return 'completed';
+
+    default: {
+      const exhaustiveCheck: never = value;
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -143,8 +198,10 @@ function mapDirection(
   switch (value) {
     case WalletTransactionDirection.CREDIT:
       return 'credit';
+
     case WalletTransactionDirection.DEBIT:
       return 'debit';
+
     case WalletTransactionDirection.NEUTRAL:
     default:
       return 'neutral';
@@ -155,12 +212,21 @@ function getLedgerTitle(type: WalletTransactionType): string {
   switch (type) {
     case WalletTransactionType.OPENING_CREDIT:
       return 'Opening Credit';
+
     case WalletTransactionType.TOP_UP:
       return 'Wallet Top Up';
+
     case WalletTransactionType.WITHDRAWAL:
       return 'Withdrawal';
+
     case WalletTransactionType.ADJUSTMENT:
       return 'Wallet Adjustment';
+
+    default: {
+      const exhaustiveCheck: never = type;
+
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -168,10 +234,18 @@ function getEarningTitle(type: MemberEarningType): string {
   switch (type) {
     case MemberEarningType.PAIRING_INCOME:
       return 'Pairing Income';
+
     case MemberEarningType.REFERRAL_COMMISSION:
       return 'Referral Commission';
+
     case MemberEarningType.GROUP_COMMISSION:
       return 'Group Commission';
+
+    default: {
+      const exhaustiveCheck: never = type;
+
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -179,15 +253,25 @@ function mapLedgerTransaction(
   record: WalletLedgerRecord,
   membershipType: WalletMembershipType,
 ): WalletTransactionDto {
+  const title = getLedgerTitle(record.type);
+
   return {
     id: record.id,
+
     type: mapLedgerType(record.type),
+
     status: mapStatus(record.status),
+
     direction: mapDirection(record.direction),
-    title: getLedgerTitle(record.type),
-    description: record.description ?? getLedgerTitle(record.type),
+
+    title,
+
+    description: record.description ?? title,
+
     amount: roundMoney(Math.abs(record.amount.toNumber())),
+
     createdAt: record.createdAt.toISOString(),
+
     membershipType,
   };
 }
@@ -198,15 +282,33 @@ function mapEarningTransaction(
 ): WalletTransactionDto {
   const amount = record.amount.toNumber();
 
+  const title = getEarningTitle(record.type);
+
+  let direction: WalletApiTransactionDirection = 'neutral';
+
+  if (amount > 0) {
+    direction = 'credit';
+  } else if (amount < 0) {
+    direction = 'debit';
+  }
+
   return {
     id: record.id,
+
     type: mapEarningType(record.type),
+
     status: mapStatus(record.status),
-    direction: amount > 0 ? 'credit' : amount < 0 ? 'debit' : 'neutral',
-    title: getEarningTitle(record.type),
-    description: `${getEarningTitle(record.type)} recorded for this member.`,
+
+    direction,
+
+    title,
+
+    description: `${title} recorded for this member.`,
+
     amount: roundMoney(Math.abs(amount)),
+
     createdAt: record.earnedAt.toISOString(),
+
     membershipType,
   };
 }
@@ -216,11 +318,17 @@ function summarizeWallet(
   earnings: readonly WalletEarningRecord[],
 ): WalletSummaryDto {
   let completedFunding = new Decimal(0);
+
   let pendingFunding = new Decimal(0);
+
   let lifetimeEarnings = new Decimal(0);
+
   let pendingEarnings = new Decimal(0);
+
   let totalWithdrawn = new Decimal(0);
+
   let referralCommission = new Decimal(0);
+
   let groupCommission = new Decimal(0);
 
   for (const transaction of ledger) {
@@ -266,11 +374,110 @@ function summarizeWallet(
     availableBalance: roundMoney(
       completedFunding.plus(lifetimeEarnings).toNumber(),
     ),
+
     pendingBalance: roundMoney(pendingFunding.plus(pendingEarnings).toNumber()),
+
     lifetimeEarnings: roundMoney(lifetimeEarnings.toNumber()),
+
     totalWithdrawn: roundMoney(totalWithdrawn.toNumber()),
+
     referralCommission: roundMoney(referralCommission.toNumber()),
+
     groupCommission: roundMoney(groupCommission.toNumber()),
+  };
+}
+
+function createOpeningCreditAllocation(
+  memberId: string,
+  primaryMemberName: string,
+  beneficiaries: readonly WalletBeneficiaryRecord[],
+  ledger: readonly WalletLedgerRecord[],
+): WalletOpeningCreditAllocationDto | null {
+  const openingCredit = ledger.find(
+    (transaction) =>
+      transaction.sourceKey === `opening-credit:${memberId}` &&
+      transaction.type === WalletTransactionType.OPENING_CREDIT &&
+      transaction.direction === WalletTransactionDirection.CREDIT &&
+      transaction.status === WalletTransactionStatus.COMPLETED,
+  );
+
+  if (!openingCredit) {
+    return null;
+  }
+
+  const totalAmount = roundMoney(openingCredit.amount.abs().toNumber());
+
+  const protectedLifeCount = MEMBER_OPENING_CREDIT_PROTECTED_LIFE_COUNT;
+
+  if (!Number.isInteger(protectedLifeCount) || protectedLifeCount <= 0) {
+    throw new InternalServerErrorException(
+      'Opening credit protected life count must be a positive integer.',
+    );
+  }
+
+  const amountPerProtectedLife = roundMoney(totalAmount / protectedLifeCount);
+
+  const beneficiariesBySequence = new Map<number, WalletBeneficiaryRecord>(
+    beneficiaries
+      .filter(
+        (beneficiary) =>
+          beneficiary.sequence >= 1 &&
+          beneficiary.sequence <= MAXIMUM_BENEFICIARIES,
+      )
+      .map((beneficiary) => [beneficiary.sequence, beneficiary] as const),
+  );
+
+  const beneficiaryAllocations = Array.from(
+    {
+      length: MAXIMUM_BENEFICIARIES,
+    },
+    (_, index) => {
+      const slot = (index + 1) as WalletOpeningCreditAllocationSlot;
+
+      const beneficiary = beneficiariesBySequence.get(slot);
+
+      return {
+        role: 'beneficiary' as const,
+
+        slot,
+
+        status: beneficiary ? ('assigned' as const) : ('reserved' as const),
+
+        name: beneficiary
+          ? buildFullName(
+              beneficiary.firstName,
+              beneficiary.middleName,
+              beneficiary.lastName,
+            )
+          : null,
+
+        amount: amountPerProtectedLife,
+      };
+    },
+  );
+
+  return {
+    totalAmount,
+
+    protectedLifeCount,
+
+    amountPerProtectedLife,
+
+    allocations: [
+      {
+        role: 'primary-member',
+
+        slot: 0,
+
+        status: 'assigned',
+
+        name: primaryMemberName,
+
+        amount: amountPerProtectedLife,
+      },
+
+      ...beneficiaryAllocations,
+    ],
   };
 }
 
@@ -290,20 +497,32 @@ export class WalletService {
       where: {
         id: memberId,
       },
+
       select: {
         id: true,
+
         membershipId: true,
+
         firstName: true,
+
         middleName: true,
+
         lastName: true,
+
         membershipType: true,
+
         beneficiaries: {
           orderBy: {
             sequence: 'asc',
           },
+
           select: {
+            sequence: true,
+
             firstName: true,
+
             middleName: true,
+
             lastName: true,
           },
         },
@@ -319,37 +538,62 @@ export class WalletService {
         where: {
           memberId,
         },
+
         select: {
           id: true,
+
           type: true,
+
           direction: true,
+
           status: true,
+
           amount: true,
+
+          sourceKey: true,
+
           description: true,
+
           createdAt: true,
         },
-      }) as Promise<WalletLedgerRecord[]>,
+      }),
+
       this.prisma.memberEarning.findMany({
         where: {
           memberId,
         },
+
         select: {
           id: true,
+
           type: true,
+
           status: true,
+
           amount: true,
+
           earnedAt: true,
         },
-      }) as Promise<WalletEarningRecord[]>,
+      }),
     ]);
 
     const membershipType = mapMembershipType(member.membershipType);
-    const transactions = [
+
+    const primaryMemberName = buildFullName(
+      member.firstName,
+      member.middleName,
+      member.lastName,
+    );
+
+    const transactions: WalletTransactionDto[] = [
       ...ledger.map((record) => mapLedgerTransaction(record, membershipType)),
+
       ...earnings.map((record) =>
         mapEarningTransaction(record, membershipType),
       ),
-    ].sort(
+    ];
+
+    transactions.sort(
       (left, right) =>
         Date.parse(right.createdAt) - Date.parse(left.createdAt) ||
         right.id.localeCompare(left.id),
@@ -357,15 +601,16 @@ export class WalletService {
 
     return {
       success: true,
+
       member: {
         id: member.id,
+
         membershipId: member.membershipId,
-        fullName: buildFullName(
-          member.firstName,
-          member.middleName,
-          member.lastName,
-        ),
+
+        fullName: primaryMemberName,
+
         membershipType,
+
         beneficiaries: member.beneficiaries.map((beneficiary) =>
           buildFullName(
             beneficiary.firstName,
@@ -374,9 +619,20 @@ export class WalletService {
           ),
         ),
       },
+
+      openingCreditAllocation: createOpeningCreditAllocation(
+        member.id,
+        primaryMemberName,
+        member.beneficiaries,
+        ledger,
+      ),
+
       summary: summarizeWallet(ledger, earnings),
+
       pairingWindows: [],
+
       transactions,
+
       generatedAt: new Date().toISOString(),
     };
   }
@@ -395,12 +651,16 @@ export class WalletService {
       (transaction) =>
         this.redeemTopUpInTransaction(transaction, memberId, normalizedCode),
     );
+
     const wallet = await this.getWallet(memberId);
 
     return {
       success: true,
+
       message: `${formatPeso(creditedAmount)} was added to your wallet.`,
+
       creditedAmount,
+
       wallet,
     };
   }
@@ -414,11 +674,16 @@ export class WalletService {
       where: {
         id: memberId,
       },
+
       select: {
         id: true,
+
         firstName: true,
+
         middleName: true,
+
         lastName: true,
+
         status: true,
       },
     });
@@ -491,7 +756,11 @@ export class WalletService {
 
     const creditedAmount = generatedCode.topUpAmount;
 
-    if (!creditedAmount || !TOP_UP_DENOMINATIONS.has(creditedAmount)) {
+    if (
+      creditedAmount === null ||
+      creditedAmount === undefined ||
+      !TOP_UP_DENOMINATIONS.has(creditedAmount)
+    ) {
       throw new ConflictException('This top-up code has no valid amount.');
     }
 
@@ -500,15 +769,21 @@ export class WalletService {
       member.middleName,
       member.lastName,
     );
+
     const claim = await transaction.generatedCode.updateMany({
       where: {
         id: generatedCode.id,
+
         category: GeneratedCodeCategory.TOP_UP,
+
         status: {
           in: [GeneratedCodeStatus.AVAILABLE, GeneratedCodeStatus.ASSIGNED],
         },
+
         usedByMemberId: null,
+
         topUpAmount: creditedAmount,
+
         OR: [
           {
             expiresAt: null,
@@ -520,10 +795,14 @@ export class WalletService {
           },
         ],
       },
+
       data: {
         status: GeneratedCodeStatus.USED,
+
         usedAt: now,
+
         usedByMemberId: memberId,
+
         usedByMemberName: memberName,
       },
     });
@@ -535,13 +814,21 @@ export class WalletService {
     await transaction.walletTransaction.create({
       data: {
         memberId,
+
         type: WalletTransactionType.TOP_UP,
+
         direction: WalletTransactionDirection.CREDIT,
+
         status: WalletTransactionStatus.COMPLETED,
+
         amount: new Decimal(creditedAmount),
+
         sourceKey: `top-up:${generatedCode.id}`,
+
         generatedCodeId: generatedCode.id,
+
         description: `${formatPeso(creditedAmount)} top-up voucher redeemed.`,
+
         createdAt: now,
       },
     });
@@ -563,11 +850,16 @@ export class WalletService {
       where: {
         generatedCodeId,
       },
+
       select: {
         memberId: true,
+
         type: true,
+
         direction: true,
+
         status: true,
+
         amount: true,
       },
     });
@@ -592,17 +884,27 @@ export class WalletService {
       try {
         return await this.prisma.$transaction(operation, {
           isolationLevel: 'Serializable',
+
           maxWait: 5_000,
+
           timeout: 20_000,
         });
       } catch (error: unknown) {
+        const isPrismaRetryableError =
+          error instanceof PrismaClientKnownRequestError &&
+          (error.code === 'P2002' || error.code === 'P2034');
+
         const retryable =
-          error instanceof TopUpClaimChangedError ||
-          (error instanceof PrismaClientKnownRequestError &&
-            (error.code === 'P2002' || error.code === 'P2034'));
+          error instanceof TopUpClaimChangedError || isPrismaRetryableError;
 
         if (!retryable) {
-          throw error;
+          if (error instanceof Error) {
+            throw error;
+          }
+
+          throw new InternalServerErrorException(
+            'An unexpected error occurred while processing the wallet transaction.',
+          );
         }
 
         if (attempt === MAX_TRANSACTION_ATTEMPTS) {

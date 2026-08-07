@@ -1,4 +1,4 @@
-import { MembershipType } from "../../generated/prisma/client";
+import { MembershipType } from '../../generated/prisma/client';
 
 export interface CreateMemberInput {
   firstName: string;

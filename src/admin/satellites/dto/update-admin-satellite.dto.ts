@@ -1,4 +1,4 @@
-import { Transform, Type } from "class-transformer";
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
@@ -13,7 +13,7 @@ import {
   Min,
   MinLength,
   ValidateNested,
-} from "class-validator";
+} from 'class-validator';
 
 import {
   SatelliteAccountRole,
@@ -21,24 +21,24 @@ import {
   SatelliteCivilStatus,
   SatelliteGender,
   SatelliteLevel,
-} from "../../../generated/prisma/client";
+} from '../../../generated/prisma/client';
 
 function optionalTrim(value: unknown): unknown {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
   const trimmed = value.trim();
 
-  return trimmed === "" ? undefined : trimmed;
+  return trimmed === '' ? undefined : trimmed;
 }
 
 function normalizeEnum(value: unknown): unknown {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
-  return value.trim().replace(/-/g, "_").toUpperCase();
+  return value.trim().replace(/-/g, '_').toUpperCase();
 }
 
 export class UpdateSatelliteLocationDto {
@@ -140,7 +140,7 @@ export class UpdateSatelliteManagerDto {
   alternateContactNumber?: string;
 
   @Transform(({ value }) =>
-    typeof value === "string" ? value.trim().toLowerCase() : value,
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   @IsOptional()
   @IsEmail()
@@ -234,7 +234,7 @@ export class UpdateSatellitePayoutAccountDto {
 
 export class UpdateSatelliteAccountDto {
   @Transform(({ value }) =>
-    typeof value === "string" ? value.trim().toLowerCase() : value,
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   @IsOptional()
   @IsString()

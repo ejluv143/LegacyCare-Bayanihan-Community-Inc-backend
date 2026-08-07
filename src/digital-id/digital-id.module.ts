@@ -1,38 +1,22 @@
-import {
-  Module,
-} from '@nestjs/common';
+import { Module } from '@nestjs/common';
 
-import {
-  PrismaModule,
-} from '../admin/database/prisma/prisma.module';
+import { PrismaModule } from '../admin/database/prisma/prisma.module';
 
-import {
-  DigitalIdController,
-} from './digital-id.controller';
+import { DigitalIdController } from './digital-id.controller';
 
-import {
-  DigitalIdService,
-} from './digital-id.service';
+import { DigitalIdService } from './digital-id.service';
 
 /* =========================================================
    DIGITAL ID MODULE
 ========================================================= */
 
 @Module({
-  imports: [
-    PrismaModule,
-  ],
+  imports: [PrismaModule],
 
-  controllers: [
-    DigitalIdController,
-  ],
+  controllers: [DigitalIdController],
 
-  providers: [
-    DigitalIdService,
-  ],
+  providers: [DigitalIdService],
 
-  exports: [
-    DigitalIdService,
-  ],
+  exports: [DigitalIdService],
 })
 export class DigitalIdModule {}

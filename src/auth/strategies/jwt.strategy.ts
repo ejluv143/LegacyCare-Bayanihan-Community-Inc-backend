@@ -1,33 +1,18 @@
-import {
-  Injectable,
-} from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
-import {
-  ConfigService,
-} from "@nestjs/config";
+import { ConfigService } from '@nestjs/config';
 
-import {
-  PassportStrategy,
-} from "@nestjs/passport";
+import { PassportStrategy } from '@nestjs/passport';
 
-import {
-  ExtractJwt,
-  Strategy,
-} from "passport-jwt";
+import { ExtractJwt, Strategy } from 'passport-jwt';
 
 /* =========================================================
    AUTH TYPES
 ========================================================= */
 
-export type AuthRole =
-  | "member"
-  | "admin"
-  | "satellite-admin";
+export type AuthRole = 'member' | 'admin' | 'satellite-admin';
 
-export type AuthAccountType =
-  | "member"
-  | "admin"
-  | "satellite";
+export type AuthAccountType = 'member' | 'admin' | 'satellite';
 
 /* =========================================================
    JWT PAYLOAD
@@ -44,11 +29,9 @@ export interface JwtPayload {
 
   username: string;
 
-  role:
-    AuthRole;
+  role: AuthRole;
 
-  accountType:
-    AuthAccountType;
+  accountType: AuthAccountType;
 }
 
 /* =========================================================
@@ -66,11 +49,9 @@ export interface AuthenticatedUser {
 
   username: string;
 
-  role:
-    AuthRole;
+  role: AuthRole;
 
-  accountType:
-    AuthAccountType;
+  accountType: AuthAccountType;
 }
 
 /* =========================================================
@@ -78,34 +59,20 @@ export interface AuthenticatedUser {
 ========================================================= */
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(
-  Strategy,
-  "jwt",
-) {
-  constructor(
-    configService:
-      ConfigService,
-  ) {
-    const secret =
-      configService.get<string>(
-        "JWT_SECRET",
-      );
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+  constructor(configService: ConfigService) {
+    const secret = configService.get<string>('JWT_SECRET');
 
     if (!secret) {
-      throw new Error(
-        "JWT_SECRET is missing from the backend environment.",
-      );
+      throw new Error('JWT_SECRET is missing from the backend environment.');
     }
 
     super({
-      jwtFromRequest:
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 
-      ignoreExpiration:
-        false,
+      ignoreExpiration: false,
 
-      secretOrKey:
-        secret,
+      secretOrKey: secret,
     });
   }
 
@@ -113,31 +80,21 @@ export class JwtStrategy extends PassportStrategy(
      VALIDATE JWT
   ======================================================= */
 
-  validate(
-    payload:
-      JwtPayload,
-  ): AuthenticatedUser {
+  validate(payload: JwtPayload): AuthenticatedUser {
     return {
-      sub:
-        payload.sub,
+      sub: payload.sub,
 
-      membershipId:
-        payload.membershipId,
+      membershipId: payload.membershipId,
 
-      satelliteId:
-        payload.satelliteId,
+      satelliteId: payload.satelliteId,
 
-      satelliteCode:
-        payload.satelliteCode,
+      satelliteCode: payload.satelliteCode,
 
-      username:
-        payload.username,
+      username: payload.username,
 
-      role:
-        payload.role,
+      role: payload.role,
 
-      accountType:
-        payload.accountType,
+      accountType: payload.accountType,
     };
   }
 }

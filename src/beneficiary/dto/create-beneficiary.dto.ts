@@ -4,16 +4,16 @@ import {
   IsOptional,
   IsString,
   MaxLength,
-} from "class-validator";
+} from 'class-validator';
 
 export enum BeneficiaryRelationship {
-  SPOUSE = "Spouse",
-  CHILD = "Child",
-  PARENT = "Parent",
-  SIBLING = "Sibling",
-  GRANDPARENT = "Grandparent",
-  GUARDIAN = "Guardian",
-  OTHER = "Other",
+  SPOUSE = 'Spouse',
+  CHILD = 'Child',
+  PARENT = 'Parent',
+  SIBLING = 'Sibling',
+  GRANDPARENT = 'Grandparent',
+  GUARDIAN = 'Guardian',
+  OTHER = 'Other',
 }
 
 export class CreateBeneficiaryDto {

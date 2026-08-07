@@ -49,6 +49,7 @@ function memberRecord() {
     status: MemberStatus.PENDING_ACTIVATION,
     beneficiaries: [
       {
+        sequence: 2,
         firstName: 'Juan',
         middleName: null,
         lastName: 'Cruz',
@@ -151,6 +152,7 @@ describe('WalletService', () => {
         direction: WalletTransactionDirection.CREDIT,
         status: WalletTransactionStatus.COMPLETED,
         amount: decimal(200),
+        sourceKey: 'opening-credit:member-1',
         description: 'Opening credit',
         createdAt: new Date('2026-08-01T00:00:00.000Z'),
       },
@@ -160,6 +162,7 @@ describe('WalletService', () => {
         direction: WalletTransactionDirection.CREDIT,
         status: WalletTransactionStatus.COMPLETED,
         amount: decimal(500),
+        sourceKey: 'top-up:code-1',
         description: null,
         createdAt: new Date('2026-08-02T00:00:00.000Z'),
       },
@@ -169,6 +172,7 @@ describe('WalletService', () => {
         direction: WalletTransactionDirection.DEBIT,
         status: WalletTransactionStatus.COMPLETED,
         amount: decimal(100),
+        sourceKey: 'withdrawal:1',
         description: null,
         createdAt: new Date('2026-08-03T00:00:00.000Z'),
       },
@@ -178,6 +182,7 @@ describe('WalletService', () => {
         direction: WalletTransactionDirection.CREDIT,
         status: WalletTransactionStatus.PENDING,
         amount: decimal(25),
+        sourceKey: 'adjustment:1',
         description: null,
         createdAt: new Date('2026-08-04T00:00:00.000Z'),
       },
@@ -230,6 +235,48 @@ describe('WalletService', () => {
       referralCommission: 50,
       groupCommission: 25,
     });
+    expect(result.openingCreditAllocation).toEqual({
+      totalAmount: 200,
+      protectedLifeCount: 5,
+      amountPerProtectedLife: 40,
+      allocations: [
+        {
+          role: 'primary-member',
+          slot: 0,
+          status: 'assigned',
+          name: 'Maria Dela Cruz',
+          amount: 40,
+        },
+        {
+          role: 'beneficiary',
+          slot: 1,
+          status: 'reserved',
+          name: null,
+          amount: 40,
+        },
+        {
+          role: 'beneficiary',
+          slot: 2,
+          status: 'assigned',
+          name: 'Juan Cruz',
+          amount: 40,
+        },
+        {
+          role: 'beneficiary',
+          slot: 3,
+          status: 'reserved',
+          name: null,
+          amount: 40,
+        },
+        {
+          role: 'beneficiary',
+          slot: 4,
+          status: 'reserved',
+          name: null,
+          amount: 40,
+        },
+      ],
+    });
     expect(result.pairingWindows).toEqual([]);
     expect(result.transactions.map(({ type }) => type)).toEqual([
       'group-commission',
@@ -243,6 +290,49 @@ describe('WalletService', () => {
     ]);
   });
 
+  it('maps reversed earnings to reversed status and excludes them from completed summary totals', async () => {
+    walletTransactionFindMany.mockResolvedValue([
+      {
+        id: 'opening',
+        type: WalletTransactionType.OPENING_CREDIT,
+        direction: WalletTransactionDirection.CREDIT,
+        status: WalletTransactionStatus.COMPLETED,
+        amount: decimal(200),
+        sourceKey: 'opening-credit:member-1',
+        description: 'Opening credit',
+        createdAt: new Date('2026-08-01T00:00:00.000Z'),
+      },
+    ]);
+    memberEarningFindMany.mockResolvedValue([
+      {
+        id: 'reversed-earning',
+        type: MemberEarningType.GROUP_COMMISSION,
+        status: MemberEarningStatus.REVERSED,
+        amount: decimal(-25),
+        earnedAt: new Date('2026-08-05T02:00:00.000Z'),
+      },
+    ]);
+
+    const result = await service.getWallet('member-1');
+
+    expect(result.summary).toEqual({
+      availableBalance: 200,
+      pendingBalance: 0,
+      lifetimeEarnings: 0,
+      totalWithdrawn: 0,
+      referralCommission: 0,
+      groupCommission: 0,
+    });
+    expect(result.transactions).toContainEqual(
+      expect.objectContaining({
+        id: 'reversed-earning',
+        type: 'group-commission',
+        status: 'reversed',
+        amount: 25,
+      }),
+    );
+  });
+
   it.each([GeneratedCodeStatus.AVAILABLE, GeneratedCodeStatus.ASSIGNED])(
     'atomically redeems a %s bearer voucher',
     async (codeStatus) => {
@@ -254,6 +344,7 @@ describe('WalletService', () => {
           direction: WalletTransactionDirection.CREDIT,
           status: WalletTransactionStatus.COMPLETED,
           amount: decimal(500),
+          sourceKey: 'top-up:code-1',
           description: 'Top up',
           createdAt: NOW,
         },
@@ -293,6 +384,7 @@ describe('WalletService', () => {
       });
       expect(result.creditedAmount).toBe(500);
       expect(result.wallet.summary.availableBalance).toBe(500);
+      expect(result.wallet.openingCreditAllocation).toBeNull();
     },
   );
 

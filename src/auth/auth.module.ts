@@ -1,19 +1,16 @@
-import { Module } from "@nestjs/common";
-import {
-  ConfigModule,
-  ConfigService,
-} from "@nestjs/config";
-import { JwtModule } from "@nestjs/jwt";
-import { PassportModule } from "@nestjs/passport";
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 
-import { DatabaseModule } from "../admin/database/database.module";
-import { MembersModule } from "../members/members.module";
+import { DatabaseModule } from '../admin/database/database.module';
+import { MembersModule } from '../members/members.module';
 
-import { AuthController } from "./auth.controller";
-import { AuthService } from "./auth.service";
-import { AdminRoleGuard } from "./guards/admin-role.guard";
-import { JwtAuthGuard } from "./guards/jwt-auth.guard";
-import { JwtStrategy } from "./strategies/jwt.strategy";
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { AdminRoleGuard } from './guards/admin-role.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
@@ -24,7 +21,7 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
     MembersModule,
 
     PassportModule.register({
-      defaultStrategy: "jwt",
+      defaultStrategy: 'jwt',
       session: false,
     }),
 
@@ -33,17 +30,12 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
 
       inject: [ConfigService],
 
-      useFactory: (
-        configService: ConfigService,
-      ) => {
-        const secret =
-          configService.get<string>(
-            "JWT_SECRET",
-          );
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
 
         if (!secret) {
           throw new Error(
-            "JWT_SECRET is missing from the backend environment.",
+            'JWT_SECRET is missing from the backend environment.',
           );
         }
 
@@ -51,23 +43,16 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
           secret,
 
           signOptions: {
-            expiresIn: "1d",
+            expiresIn: '1d',
           },
         };
       },
     }),
   ],
 
-  controllers: [
-    AuthController,
-  ],
+  controllers: [AuthController],
 
-  providers: [
-    AuthService,
-    JwtStrategy,
-    JwtAuthGuard,
-    AdminRoleGuard,
-  ],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, AdminRoleGuard],
 
   exports: [
     AuthService,

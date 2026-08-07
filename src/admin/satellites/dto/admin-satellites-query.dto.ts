@@ -1,4 +1,4 @@
-import { Transform, Type } from "class-transformer";
+import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
   IsIn,
@@ -8,29 +8,29 @@ import {
   Max,
   MaxLength,
   Min,
-} from "class-validator";
+} from 'class-validator';
 
 import {
   SatelliteBusinessType,
   SatelliteStatus,
-} from "../../../generated/prisma/client";
+} from '../../../generated/prisma/client';
 
 function optionalTrim(value: unknown): unknown {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
   const trimmed = value.trim();
 
-  return trimmed === "" ? undefined : trimmed;
+  return trimmed === '' ? undefined : trimmed;
 }
 
 function normalizeEnum(value: unknown): unknown {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
-  return value.trim().replace(/-/g, "_").toUpperCase();
+  return value.trim().replace(/-/g, '_').toUpperCase();
 }
 
 export class AdminSatellitesQueryDto {
@@ -87,22 +87,22 @@ export class AdminSatellitesQueryDto {
 
   @IsOptional()
   @IsIn([
-    "satelliteName",
-    "satelliteCode",
-    "status",
-    "memberCount",
-    "createdAt",
-    "updatedAt",
+    'satelliteName',
+    'satelliteCode',
+    'status',
+    'memberCount',
+    'createdAt',
+    'updatedAt',
   ])
   sortBy:
-    | "satelliteName"
-    | "satelliteCode"
-    | "status"
-    | "memberCount"
-    | "createdAt"
-    | "updatedAt" = "createdAt";
+    | 'satelliteName'
+    | 'satelliteCode'
+    | 'status'
+    | 'memberCount'
+    | 'createdAt'
+    | 'updatedAt' = 'createdAt';
 
   @IsOptional()
-  @IsIn(["asc", "desc"])
-  sortOrder: "asc" | "desc" = "desc";
+  @IsIn(['asc', 'desc'])
+  sortOrder: 'asc' | 'desc' = 'desc';
 }

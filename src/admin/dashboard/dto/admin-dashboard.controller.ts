@@ -1,28 +1,20 @@
-import {
-  Controller,
-  Get,
-} from "@nestjs/common";
+import { Controller, Get } from '@nestjs/common';
 
-import {
-  AdminDashboardService,
-} from "./admin-dashboard.service";
+import { AdminDashboardService } from './admin-dashboard.service';
 
 /* =========================================================
    CONTROLLER
 ========================================================= */
 
-@Controller("admin/dashboard")
+@Controller('admin/dashboard')
 export class AdminDashboardController {
-  constructor(
-    private readonly adminDashboardService:
-      AdminDashboardService,
-  ) {}
+  constructor(private readonly adminDashboardService: AdminDashboardService) {}
 
   /* =======================================================
      MEMBER TOTALS
   ======================================================= */
 
-  @Get("member-totals")
+  @Get('member-totals')
   getMemberTotals() {
     return this.adminDashboardService.getMemberTotals();
   }
@@ -31,7 +23,7 @@ export class AdminDashboardController {
      DASHBOARD OVERVIEW
   ======================================================= */
 
-  @Get("overview")
+  @Get('overview')
   getOverview() {
     return this.adminDashboardService.getOverview();
   }
@@ -40,7 +32,7 @@ export class AdminDashboardController {
      RECENT MEMBERS
   ======================================================= */
 
-  @Get("recent-members")
+  @Get('recent-members')
   getRecentMembers() {
     return this.adminDashboardService.getRecentMembers();
   }
@@ -49,7 +41,7 @@ export class AdminDashboardController {
      MEMBER GROWTH
   ======================================================= */
 
-  @Get("member-growth")
+  @Get('member-growth')
   getMemberGrowth() {
     return this.adminDashboardService.getMemberGrowth();
   }

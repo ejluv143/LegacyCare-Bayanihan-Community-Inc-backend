@@ -1,14 +1,8 @@
-import {
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable, NotFoundException } from '@nestjs/common';
 
-import {
-  MemberStatus,
-  MembershipType,
-} from "../../../generated/prisma/client";
+import { MemberStatus, MembershipType } from '../../../generated/prisma/client';
 
-import { PrismaService } from "../../database/prisma/prisma.service";
+import { PrismaService } from '../../database/prisma/prisma.service';
 
 import type {
   AdminGenealogyClient,
@@ -18,7 +12,7 @@ import type {
   AdminGenealogyTreeResponse,
   AdminNetworkPlacement,
   AdminNetworkTreeNode,
-} from "./admin-genealogy.types";
+} from './admin-genealogy.types';
 
 /* =========================================================
    CONSTANTS
@@ -63,15 +57,9 @@ interface GenealogyMemberRecord {
 interface GenealogyDirectory {
   members: GenealogyMemberRecord[];
 
-  memberById: Map<
-    string,
-    GenealogyMemberRecord
-  >;
+  memberById: Map<string, GenealogyMemberRecord>;
 
-  childrenBySponsorId: Map<
-    string,
-    GenealogyMemberRecord[]
-  >;
+  childrenBySponsorId: Map<string, GenealogyMemberRecord[]>;
 }
 
 /* =========================================================
@@ -96,58 +84,37 @@ interface NetworkCounts {
 
 @Injectable()
 export class AdminGenealogyService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /* =======================================================
      CLIENT DIRECTORY
   ======================================================= */
 
-  async getGenealogyClients():
-    Promise<AdminGenealogyClientsResponse> {
-    const directory =
-      await this.loadGenealogyDirectory();
+  async getGenealogyClients(): Promise<AdminGenealogyClientsResponse> {
+    const directory = await this.loadGenealogyDirectory();
 
-    const clients =
-      directory.members.map(
-        (member) =>
-          this.createGenealogyClient(
-            member,
-            directory,
-          ),
-      );
-
-    clients.sort(
-      (
-        firstClient,
-        secondClient,
-      ) => {
-        if (
-          secondClient.totalNetworkCount !==
-          firstClient.totalNetworkCount
-        ) {
-          return (
-            secondClient.totalNetworkCount -
-            firstClient.totalNetworkCount
-          );
-        }
-
-        return firstClient.fullName.localeCompare(
-          secondClient.fullName,
-          "en-PH",
-          {
-            sensitivity: "base",
-          },
-        );
-      },
+    const clients = directory.members.map((member) =>
+      this.createGenealogyClient(member, directory),
     );
+
+    clients.sort((firstClient, secondClient) => {
+      if (secondClient.totalNetworkCount !== firstClient.totalNetworkCount) {
+        return secondClient.totalNetworkCount - firstClient.totalNetworkCount;
+      }
+
+      return firstClient.fullName.localeCompare(
+        secondClient.fullName,
+        'en-PH',
+        {
+          sensitivity: 'base',
+        },
+      );
+    });
 
     return {
       success: true,
 
-      message:
-        "Genealogy clients retrieved successfully.",
+      message: 'Genealogy clients retrieved successfully.',
 
       data: {
         clients,
@@ -162,49 +129,36 @@ export class AdminGenealogyService {
   async getGenealogyTree(
     memberId: string,
   ): Promise<AdminGenealogyTreeResponse> {
-    const normalizedMemberId =
-      memberId.trim();
+    const normalizedMemberId = memberId.trim();
 
     if (!normalizedMemberId) {
-      throw new NotFoundException(
-        "The selected member was not found.",
-      );
+      throw new NotFoundException('The selected member was not found.');
     }
 
-    const directory =
-      await this.loadGenealogyDirectory();
+    const directory = await this.loadGenealogyDirectory();
 
-    const selectedMember =
-      directory.memberById.get(
-        normalizedMemberId,
-      );
+    const selectedMember = directory.memberById.get(normalizedMemberId);
 
     if (!selectedMember) {
       throw new NotFoundException(
-        "The selected genealogy member was not found.",
+        'The selected genealogy member was not found.',
       );
     }
 
-    const client =
-      this.createGenealogyClient(
-        selectedMember,
-        directory,
-      );
+    const client = this.createGenealogyClient(selectedMember, directory);
 
-    const root =
-      this.createNetworkTreeNode(
-        selectedMember,
-        "root",
-        null,
-        directory,
-        new Set<string>(),
-      );
+    const root = this.createNetworkTreeNode(
+      selectedMember,
+      'root',
+      null,
+      directory,
+      new Set<string>(),
+    );
 
     return {
       success: true,
 
-      message:
-        "Genealogy tree retrieved successfully.",
+      message: 'Genealogy tree retrieved successfully.',
 
       data: {
         client,
@@ -218,109 +172,74 @@ export class AdminGenealogyService {
      LOAD GENEALOGY DIRECTORY
   ======================================================= */
 
-  private async loadGenealogyDirectory():
-    Promise<GenealogyDirectory> {
-    const members =
-      await this.prisma.member.findMany({
-        orderBy: [
-          {
-            createdAt: "asc",
-          },
-
-          {
-            id: "asc",
-          },
-        ],
-
-        select: {
-          id: true,
-
-          membershipId: true,
-
-          firstName: true,
-
-          middleName: true,
-
-          lastName: true,
-
-          username: true,
-
-          membershipType: true,
-
-          status: true,
-
-          referralCode: true,
-
-          sponsorId: true,
-
-          memberSince: true,
-
-          createdAt: true,
+  private async loadGenealogyDirectory(): Promise<GenealogyDirectory> {
+    const members = await this.prisma.member.findMany({
+      orderBy: [
+        {
+          createdAt: 'asc',
         },
-      });
 
-    const memberById =
-      new Map<
-        string,
-        GenealogyMemberRecord
-      >();
+        {
+          id: 'asc',
+        },
+      ],
 
-    const childrenBySponsorId =
-      new Map<
-        string,
-        GenealogyMemberRecord[]
-      >();
+      select: {
+        id: true,
+
+        membershipId: true,
+
+        firstName: true,
+
+        middleName: true,
+
+        lastName: true,
+
+        username: true,
+
+        membershipType: true,
+
+        status: true,
+
+        referralCode: true,
+
+        sponsorId: true,
+
+        memberSince: true,
+
+        createdAt: true,
+      },
+    });
+
+    const memberById = new Map<string, GenealogyMemberRecord>();
+
+    const childrenBySponsorId = new Map<string, GenealogyMemberRecord[]>();
 
     for (const member of members) {
-      memberById.set(
-        member.id,
-        member,
-      );
+      memberById.set(member.id, member);
 
       if (!member.sponsorId) {
         continue;
       }
 
-      const existingChildren =
-        childrenBySponsorId.get(
-          member.sponsorId,
-        ) ?? [];
+      const existingChildren = childrenBySponsorId.get(member.sponsorId) ?? [];
 
-      existingChildren.push(
-        member,
-      );
+      existingChildren.push(member);
 
-      childrenBySponsorId.set(
-        member.sponsorId,
-        existingChildren,
-      );
+      childrenBySponsorId.set(member.sponsorId, existingChildren);
     }
 
-    for (
-      const children of
-      childrenBySponsorId.values()
-    ) {
-      children.sort(
-        (
-          firstMember,
-          secondMember,
-        ) => {
-          const createdDifference =
-            firstMember.createdAt.getTime() -
-            secondMember.createdAt.getTime();
+    for (const children of childrenBySponsorId.values()) {
+      children.sort((firstMember, secondMember) => {
+        const createdDifference =
+          firstMember.createdAt.getTime() - secondMember.createdAt.getTime();
 
-          if (
-            createdDifference !==
-            0
-          ) {
-            return createdDifference;
-          }
+        if (createdDifference !== 0) {
+          return createdDifference;
+        }
 
-          return firstMember.id.localeCompare(
-            secondMember.id,
-          );
-        },
-      );
+        return firstMember.id.localeCompare(secondMember.id);
+      });
     }
 
     return {
@@ -340,82 +259,44 @@ export class AdminGenealogyService {
     member: GenealogyMemberRecord,
     directory: GenealogyDirectory,
   ): AdminGenealogyClient {
-    const sponsor =
-      member.sponsorId
-        ? directory.memberById.get(
-            member.sponsorId,
-          ) ?? null
-        : null;
+    const sponsor = member.sponsorId
+      ? (directory.memberById.get(member.sponsorId) ?? null)
+      : null;
 
-    const counts =
-      this.calculateNetworkCounts(
-        member.id,
-        directory,
-      );
+    const counts = this.calculateNetworkCounts(member.id, directory);
 
     return {
-      id:
-        member.id,
+      id: member.id,
 
-      membershipId:
-        member.membershipId,
+      membershipId: member.membershipId,
 
-      fullName:
-        this.getFullName(
-          member,
-        ),
+      fullName: this.getFullName(member),
 
-      username:
-        member.username,
+      username: member.username,
 
-      membershipType:
-        this.mapMembershipType(
-          member.membershipType,
-        ),
+      membershipType: this.mapMembershipType(member.membershipType),
 
-      status:
-        this.mapMemberStatus(
-          member.status,
-        ),
+      status: this.mapMemberStatus(member.status),
 
-      referralCode:
-        member.referralCode,
+      referralCode: member.referralCode,
 
-      sponsorId:
-        sponsor?.id ??
-        null,
+      sponsorId: sponsor?.id ?? null,
 
-      sponsorName:
-        sponsor
-          ? this.getFullName(
-              sponsor,
-            )
-          : null,
+      sponsorName: sponsor ? this.getFullName(sponsor) : null,
 
-      sponsorMembershipId:
-        sponsor?.membershipId ??
-        null,
+      sponsorMembershipId: sponsor?.membershipId ?? null,
 
-      directReferralCount:
-        counts.directReferralCount,
+      directReferralCount: counts.directReferralCount,
 
-      leftNetworkCount:
-        counts.leftNetworkCount,
+      leftNetworkCount: counts.leftNetworkCount,
 
-      rightNetworkCount:
-        counts.rightNetworkCount,
+      rightNetworkCount: counts.rightNetworkCount,
 
-      totalNetworkCount:
-        counts.totalNetworkCount,
+      totalNetworkCount: counts.totalNetworkCount,
 
-      rightBranchUnlocked:
-        counts.rightBranchUnlocked,
+      rightBranchUnlocked: counts.rightBranchUnlocked,
 
-      joinedAt:
-        (
-          member.memberSince ??
-          member.createdAt
-        ).toISOString(),
+      joinedAt: (member.memberSince ?? member.createdAt).toISOString(),
     };
   }
 
@@ -427,71 +308,36 @@ export class AdminGenealogyService {
     memberId: string,
     directory: GenealogyDirectory,
   ): NetworkCounts {
-    const directChildren =
-      directory.childrenBySponsorId.get(
-        memberId,
-      ) ?? [];
+    const directChildren = directory.childrenBySponsorId.get(memberId) ?? [];
 
-    const leftChildren =
-      directChildren.slice(
-        0,
-        DIRECT_LEFT_LIMIT,
-      );
+    const leftChildren = directChildren.slice(0, DIRECT_LEFT_LIMIT);
 
-    const rightChildren =
-      directChildren.slice(
-        DIRECT_LEFT_LIMIT,
-      );
+    const rightChildren = directChildren.slice(DIRECT_LEFT_LIMIT);
 
-    const leftNetworkCount =
-      leftChildren.reduce(
-        (
-          total,
-          child,
-        ) =>
-          total +
-          this.countSubtreeMembers(
-            child.id,
-            directory,
-            new Set([
-              memberId,
-            ]),
-          ),
-        0,
-      );
+    const leftNetworkCount = leftChildren.reduce(
+      (total, child) =>
+        total +
+        this.countSubtreeMembers(child.id, directory, new Set([memberId])),
+      0,
+    );
 
-    const rightNetworkCount =
-      rightChildren.reduce(
-        (
-          total,
-          child,
-        ) =>
-          total +
-          this.countSubtreeMembers(
-            child.id,
-            directory,
-            new Set([
-              memberId,
-            ]),
-          ),
-        0,
-      );
+    const rightNetworkCount = rightChildren.reduce(
+      (total, child) =>
+        total +
+        this.countSubtreeMembers(child.id, directory, new Set([memberId])),
+      0,
+    );
 
     return {
-      directReferralCount:
-        directChildren.length,
+      directReferralCount: directChildren.length,
 
       leftNetworkCount,
 
       rightNetworkCount,
 
-      totalNetworkCount:
-        leftNetworkCount +
-        rightNetworkCount,
+      totalNetworkCount: leftNetworkCount + rightNetworkCount,
 
-      rightBranchUnlocked:
-        leftChildren.length >=
-        DIRECT_LEFT_LIMIT,
+      rightBranchUnlocked: leftChildren.length >= DIRECT_LEFT_LIMIT,
     };
   }
 
@@ -504,41 +350,21 @@ export class AdminGenealogyService {
     directory: GenealogyDirectory,
     visitedMemberIds: Set<string>,
   ): number {
-    if (
-      visitedMemberIds.has(
-        memberId,
-      )
-    ) {
+    if (visitedMemberIds.has(memberId)) {
       return 0;
     }
 
-    const nextVisited =
-      new Set(
-        visitedMemberIds,
-      );
+    const nextVisited = new Set(visitedMemberIds);
 
-    nextVisited.add(
-      memberId,
-    );
+    nextVisited.add(memberId);
 
-    const children =
-      directory.childrenBySponsorId.get(
-        memberId,
-      ) ?? [];
+    const children = directory.childrenBySponsorId.get(memberId) ?? [];
 
     return (
       1 +
       children.reduce(
-        (
-          total,
-          child,
-        ) =>
-          total +
-          this.countSubtreeMembers(
-            child.id,
-            directory,
-            nextVisited,
-          ),
+        (total, child) =>
+          total + this.countSubtreeMembers(child.id, directory, nextVisited),
         0,
       )
     );
@@ -550,20 +376,12 @@ export class AdminGenealogyService {
 
   private createNetworkTreeNode(
     member: GenealogyMemberRecord,
-    placement:
-      AdminNetworkPlacement,
-    parentId:
-      string | null,
-    directory:
-      GenealogyDirectory,
-    visitedMemberIds:
-      Set<string>,
+    placement: AdminNetworkPlacement,
+    parentId: string | null,
+    directory: GenealogyDirectory,
+    visitedMemberIds: Set<string>,
   ): AdminNetworkTreeNode {
-    if (
-      visitedMemberIds.has(
-        member.id,
-      )
-    ) {
+    if (visitedMemberIds.has(member.id)) {
       return this.createBaseTreeNode(
         member,
         placement,
@@ -573,42 +391,24 @@ export class AdminGenealogyService {
       );
     }
 
-    const nextVisited =
-      new Set(
-        visitedMemberIds,
-      );
+    const nextVisited = new Set(visitedMemberIds);
 
-    nextVisited.add(
-      member.id,
-    );
+    nextVisited.add(member.id);
 
-    const directChildren =
-      directory.childrenBySponsorId.get(
+    const directChildren = directory.childrenBySponsorId.get(member.id) ?? [];
+
+    const children = directChildren.map((child, index) => {
+      const childPlacement: AdminNetworkPlacement =
+        index < DIRECT_LEFT_LIMIT ? 'left' : 'right';
+
+      return this.createNetworkTreeNode(
+        child,
+        childPlacement,
         member.id,
-      ) ?? [];
-
-    const children =
-      directChildren.map(
-        (
-          child,
-          index,
-        ) => {
-          const childPlacement:
-            AdminNetworkPlacement =
-            index <
-            DIRECT_LEFT_LIMIT
-              ? "left"
-              : "right";
-
-          return this.createNetworkTreeNode(
-            child,
-            childPlacement,
-            member.id,
-            directory,
-            nextVisited,
-          );
-        },
+        directory,
+        nextVisited,
       );
+    });
 
     return this.createBaseTreeNode(
       member,
@@ -625,55 +425,33 @@ export class AdminGenealogyService {
 
   private createBaseTreeNode(
     member: GenealogyMemberRecord,
-    placement:
-      AdminNetworkPlacement,
-    parentId:
-      string | null,
-    children:
-      AdminNetworkTreeNode[],
-    directory:
-      GenealogyDirectory,
+    placement: AdminNetworkPlacement,
+    parentId: string | null,
+    children: AdminNetworkTreeNode[],
+    directory: GenealogyDirectory,
   ): AdminNetworkTreeNode {
-    const directReferralCount =
-      (
-        directory.childrenBySponsorId.get(
-          member.id,
-        ) ?? []
-      ).length;
+    const directReferralCount = (
+      directory.childrenBySponsorId.get(member.id) ?? []
+    ).length;
 
     return {
-      id:
-        member.id,
+      id: member.id,
 
-      memberId:
-        member.id,
+      memberId: member.id,
 
-      membershipId:
-        member.membershipId,
+      membershipId: member.membershipId,
 
-      fullName:
-        this.getFullName(
-          member,
-        ),
+      fullName: this.getFullName(member),
 
-      username:
-        member.username,
+      username: member.username,
 
-      membershipType:
-        this.mapMembershipType(
-          member.membershipType,
-        ),
+      membershipType: this.mapMembershipType(member.membershipType),
 
-      status:
-        this.mapMemberStatus(
-          member.status,
-        ),
+      status: this.mapMemberStatus(member.status),
 
       placement,
 
-      verified:
-        member.status ===
-        MemberStatus.ACTIVE,
+      verified: member.status === MemberStatus.ACTIVE,
 
       directReferralCount,
 
@@ -690,32 +468,16 @@ export class AdminGenealogyService {
   private getFullName(
     member: Pick<
       GenealogyMemberRecord,
-      | "firstName"
-      | "middleName"
-      | "lastName"
+      'firstName' | 'middleName' | 'lastName'
     >,
   ): string {
-    return [
-      member.firstName,
-
-      member.middleName,
-
-      member.lastName,
-    ]
+    return [member.firstName, member.middleName, member.lastName]
       .filter(
-        (
-          value,
-        ): value is string =>
-          typeof value ===
-            "string" &&
-          value.trim().length >
-            0,
+        (value): value is string =>
+          typeof value === 'string' && value.trim().length > 0,
       )
-      .map(
-        (value) =>
-          value.trim(),
-      )
-      .join(" ");
+      .map((value) => value.trim())
+      .join(' ');
   }
 
   /* =======================================================
@@ -723,18 +485,15 @@ export class AdminGenealogyService {
   ======================================================= */
 
   private mapMembershipType(
-    membershipType:
-      MembershipType,
+    membershipType: MembershipType,
   ): AdminGenealogyMembershipType {
-    switch (
-      membershipType
-    ) {
+    switch (membershipType) {
       case MembershipType.PREMIUM:
-        return "premium";
+        return 'premium';
 
       case MembershipType.BASIC:
       default:
-        return "basic";
+        return 'basic';
     }
   }
 
@@ -742,22 +501,20 @@ export class AdminGenealogyService {
      STATUS MAPPING
   ======================================================= */
 
-  private mapMemberStatus(
-    status: MemberStatus,
-  ): AdminGenealogyClientStatus {
+  private mapMemberStatus(status: MemberStatus): AdminGenealogyClientStatus {
     switch (status) {
       case MemberStatus.ACTIVE:
-        return "active";
+        return 'active';
 
       case MemberStatus.PENDING_ACTIVATION:
-        return "pending";
+        return 'pending';
 
       case MemberStatus.SUSPENDED:
-        return "suspended";
+        return 'suspended';
 
       case MemberStatus.DISABLED:
       default:
-        return "inactive";
+        return 'inactive';
     }
   }
 }

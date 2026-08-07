@@ -3,7 +3,7 @@ import type {
   BeneficiaryRelationship,
   BeneficiarySlot,
   BeneficiaryStatus,
-} from "./beneficiary.types";
+} from './beneficiary.types';
 
 interface BeneficiaryRecord {
   beneficiaryId: string;
@@ -24,10 +24,7 @@ interface BeneficiaryStatusFields {
   firstName: string;
   lastName: string;
   address: string | null;
-  relationship:
-    | BeneficiaryRelationship
-    | ""
-    | null;
+  relationship: BeneficiaryRelationship | '' | null;
 }
 
 export function createEmptyBeneficiarySlot(
@@ -37,22 +34,21 @@ export function createEmptyBeneficiarySlot(
     id: `beneficiary-slot-${slotNumber}`,
     slotNumber,
 
-    firstName: "",
+    firstName: '',
     middleName: null,
-    lastName: "",
+    lastName: '',
 
-    address: "",
-    relationship: "",
+    address: '',
+    relationship: '',
 
-    status: "empty",
+    status: 'empty',
   };
 }
 
 export function mapBeneficiarySlot(
   beneficiary: BeneficiaryRecord,
 ): BeneficiarySlot {
-  const relationship =
-    beneficiary.relationship as BeneficiaryRelationship;
+  const relationship = beneficiary.relationship as BeneficiaryRelationship;
 
   return {
     id: beneficiary.beneficiaryId,
@@ -74,11 +70,8 @@ export function mapBeneficiarySlot(
   };
 }
 
-export function mapBeneficiary(
-  beneficiary: BeneficiaryRecord,
-): Beneficiary {
-  const relationship =
-    beneficiary.relationship as BeneficiaryRelationship;
+export function mapBeneficiary(beneficiary: BeneficiaryRecord): Beneficiary {
+  const relationship = beneficiary.relationship as BeneficiaryRelationship;
 
   return {
     id: beneficiary.beneficiaryId,
@@ -97,7 +90,7 @@ export function mapBeneficiary(
       relationship,
     }),
 
-    accountType: "BENEFICIARY",
+    accountType: 'BENEFICIARY',
     canLogin: false,
 
     createdAt: beneficiary.createdAt.toISOString(),
@@ -116,18 +109,16 @@ export function getBeneficiaryStatus(
   ];
 
   const completedFields = requiredFields.filter(
-    (field) =>
-      typeof field === "string" &&
-      field.trim().length > 0,
+    (field) => typeof field === 'string' && field.trim().length > 0,
   ).length;
 
   if (completedFields === 0) {
-    return "empty";
+    return 'empty';
   }
 
   if (completedFields < requiredFields.length) {
-    return "incomplete";
+    return 'incomplete';
   }
 
-  return "completed";
+  return 'completed';
 }

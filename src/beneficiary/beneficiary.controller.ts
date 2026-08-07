@@ -9,36 +9,32 @@ import {
   Req,
   UnauthorizedException,
   UseGuards,
-} from "@nestjs/common";
+} from '@nestjs/common';
 
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-import { BeneficiaryService } from "./beneficiary.service";
-import { CreateBeneficiaryDto } from "./dto/create-beneficiary.dto";
-import { UpdateBeneficiaryDto } from "./dto/update-beneficiary.dto";
-import { VerifyBeneficiaryUnlockCodeDto } from "./dto/verify-beneficiary-unlock-code.dto";
+import { BeneficiaryService } from './beneficiary.service';
+import { CreateBeneficiaryDto } from './dto/create-beneficiary.dto';
+import { UpdateBeneficiaryDto } from './dto/update-beneficiary.dto';
+import { VerifyBeneficiaryUnlockCodeDto } from './dto/verify-beneficiary-unlock-code.dto';
 
 interface AuthenticatedMemberRequest {
   user?: {
     sub?: string;
     membershipId?: string;
     username?: string;
-    role?: "member" | "admin";
-    accountType?: "member" | "admin";
+    role?: 'member' | 'admin';
+    accountType?: 'member' | 'admin';
   };
 }
 
-@Controller("member/beneficiaries")
+@Controller('member/beneficiaries')
 @UseGuards(JwtAuthGuard)
 export class BeneficiaryController {
-  constructor(
-    private readonly beneficiaryService: BeneficiaryService,
-  ) {}
+  constructor(private readonly beneficiaryService: BeneficiaryService) {}
 
   @Get()
-  getBeneficiaries(
-    @Req() request: AuthenticatedMemberRequest,
-  ) {
+  getBeneficiaries(@Req() request: AuthenticatedMemberRequest) {
     return this.beneficiaryService.getBeneficiaries(
       this.getMemberIdentifier(request),
     );
@@ -55,7 +51,7 @@ export class BeneficiaryController {
     );
   }
 
-  @Post("unlock")
+  @Post('unlock')
   verifyUnlockCode(
     @Req() request: AuthenticatedMemberRequest,
     @Body() dto: VerifyBeneficiaryUnlockCodeDto,
@@ -66,10 +62,10 @@ export class BeneficiaryController {
     );
   }
 
-  @Patch(":beneficiaryId")
+  @Patch(':beneficiaryId')
   updateBeneficiary(
     @Req() request: AuthenticatedMemberRequest,
-    @Param("beneficiaryId") beneficiaryId: string,
+    @Param('beneficiaryId') beneficiaryId: string,
     @Body() dto: UpdateBeneficiaryDto,
   ) {
     return this.beneficiaryService.updateBeneficiary(
@@ -79,10 +75,10 @@ export class BeneficiaryController {
     );
   }
 
-  @Delete(":beneficiaryId")
+  @Delete(':beneficiaryId')
   deleteBeneficiary(
     @Req() request: AuthenticatedMemberRequest,
-    @Param("beneficiaryId") beneficiaryId: string,
+    @Param('beneficiaryId') beneficiaryId: string,
   ) {
     return this.beneficiaryService.deleteBeneficiary(
       this.getMemberIdentifier(request),
@@ -90,32 +86,22 @@ export class BeneficiaryController {
     );
   }
 
-  private getMemberIdentifier(
-    request: AuthenticatedMemberRequest,
-  ): string {
+  private getMemberIdentifier(request: AuthenticatedMemberRequest): string {
     const user = request.user;
 
     if (!user) {
-      throw new UnauthorizedException(
-        "Authentication is required.",
-      );
+      throw new UnauthorizedException('Authentication is required.');
     }
 
-    if (
-      user.role !== "member" ||
-      user.accountType !== "member"
-    ) {
-      throw new UnauthorizedException(
-        "A member account is required.",
-      );
+    if (user.role !== 'member' || user.accountType !== 'member') {
+      throw new UnauthorizedException('A member account is required.');
     }
 
-    const memberIdentifier =
-      user.membershipId ?? user.sub;
+    const memberIdentifier = user.membershipId ?? user.sub;
 
     if (!memberIdentifier) {
       throw new UnauthorizedException(
-        "The authenticated member ID was not found.",
+        'The authenticated member ID was not found.',
       );
     }
 

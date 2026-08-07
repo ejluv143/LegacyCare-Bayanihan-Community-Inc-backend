@@ -11,8 +11,8 @@ import {
   Post,
   Query,
   Req,
-} from "@nestjs/common";
-import type { Request } from "express";
+} from '@nestjs/common';
+import type { Request } from 'express';
 
 import {
   AdminSatellitesService,
@@ -23,12 +23,12 @@ import {
   type AdminSatelliteStatusHistoryResponse,
   type CreateAdminSatelliteResponse,
   type SatelliteMessageResponse,
-} from "./admin-satellites.service";
-import { AdminSatellitesQueryDto } from "./dto/admin-satellites-query.dto";
-import { CreateAdminSatelliteDto } from "./dto/create-admin-satellite.dto";
-import { ResetSatellitePasswordDto } from "./dto/reset-satellite-password.dto";
-import { UpdateAdminSatelliteStatusDto } from "./dto/update-admin-satellite-status.dto";
-import { UpdateAdminSatelliteDto } from "./dto/update-admin-satellite.dto";
+} from './admin-satellites.service';
+import { AdminSatellitesQueryDto } from './dto/admin-satellites-query.dto';
+import { CreateAdminSatelliteDto } from './dto/create-admin-satellite.dto';
+import { ResetSatellitePasswordDto } from './dto/reset-satellite-password.dto';
+import { UpdateAdminSatelliteStatusDto } from './dto/update-admin-satellite-status.dto';
+import { UpdateAdminSatelliteDto } from './dto/update-admin-satellite.dto';
 
 interface AuthenticatedAdminRequest extends Request {
   user?: {
@@ -42,7 +42,7 @@ interface AuthenticatedAdminRequest extends Request {
 }
 
 const satelliteIdPipe = new ParseUUIDPipe({
-  version: "4",
+  version: '4',
 });
 
 function getAdminIdentity(request: AuthenticatedAdminRequest): AdminIdentity {
@@ -56,20 +56,20 @@ function getAdminIdentity(request: AuthenticatedAdminRequest): AdminIdentity {
   };
 }
 
-@Controller("admin/satellites")
+@Controller('admin/satellites')
 export class AdminSatellitesController {
   constructor(
     private readonly adminSatellitesService: AdminSatellitesService,
   ) {}
 
-  @Get("overview")
+  @Get('overview')
   getOverview(): Promise<AdminSatelliteOverviewResponse> {
     return this.adminSatellitesService.getOverview();
   }
 
-  @Get(":id/status-history")
+  @Get(':id/status-history')
   getStatusHistory(
-    @Param("id", satelliteIdPipe) satelliteId: string,
+    @Param('id', satelliteIdPipe) satelliteId: string,
   ): Promise<AdminSatelliteStatusHistoryResponse> {
     return this.adminSatellitesService.getStatusHistory(satelliteId);
   }
@@ -81,9 +81,9 @@ export class AdminSatellitesController {
     return this.adminSatellitesService.getSatellites(query);
   }
 
-  @Get(":id")
+  @Get(':id')
   getSatelliteById(
-    @Param("id", satelliteIdPipe) satelliteId: string,
+    @Param('id', satelliteIdPipe) satelliteId: string,
   ): Promise<AdminSatelliteApiResponse> {
     return this.adminSatellitesService.getSatelliteById(satelliteId);
   }
@@ -96,17 +96,17 @@ export class AdminSatellitesController {
     return this.adminSatellitesService.createSatellite(dto);
   }
 
-  @Patch(":id")
+  @Patch(':id')
   updateSatellite(
-    @Param("id", satelliteIdPipe) satelliteId: string,
+    @Param('id', satelliteIdPipe) satelliteId: string,
     @Body() dto: UpdateAdminSatelliteDto,
   ): Promise<AdminSatelliteApiResponse> {
     return this.adminSatellitesService.updateSatellite(satelliteId, dto);
   }
 
-  @Patch(":id/status")
+  @Patch(':id/status')
   updateSatelliteStatus(
-    @Param("id", satelliteIdPipe) satelliteId: string,
+    @Param('id', satelliteIdPipe) satelliteId: string,
     @Body() dto: UpdateAdminSatelliteStatusDto,
     @Req() request: AuthenticatedAdminRequest,
   ): Promise<AdminSatelliteApiResponse> {
@@ -117,17 +117,17 @@ export class AdminSatellitesController {
     );
   }
 
-  @Post(":id/reset-password")
+  @Post(':id/reset-password')
   resetPassword(
-    @Param("id", satelliteIdPipe) satelliteId: string,
+    @Param('id', satelliteIdPipe) satelliteId: string,
     @Body() dto: ResetSatellitePasswordDto,
   ): Promise<SatelliteMessageResponse> {
     return this.adminSatellitesService.resetPassword(satelliteId, dto);
   }
 
-  @Delete(":id")
+  @Delete(':id')
   deleteSatellite(
-    @Param("id", satelliteIdPipe) satelliteId: string,
+    @Param('id', satelliteIdPipe) satelliteId: string,
   ): Promise<SatelliteMessageResponse> {
     return this.adminSatellitesService.deleteSatellite(satelliteId);
   }

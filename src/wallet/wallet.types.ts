@@ -22,6 +22,28 @@ export interface WalletMemberDto {
   beneficiaries: string[];
 }
 
+export type WalletOpeningCreditAllocationRole =
+  'primary-member' | 'beneficiary';
+
+export type WalletOpeningCreditAllocationStatus = 'assigned' | 'reserved';
+
+export type WalletOpeningCreditAllocationSlot = 0 | 1 | 2 | 3 | 4;
+
+export interface WalletOpeningCreditAllocationItemDto {
+  role: WalletOpeningCreditAllocationRole;
+  slot: WalletOpeningCreditAllocationSlot;
+  status: WalletOpeningCreditAllocationStatus;
+  name: string | null;
+  amount: number;
+}
+
+export interface WalletOpeningCreditAllocationDto {
+  totalAmount: number;
+  protectedLifeCount: number;
+  amountPerProtectedLife: number;
+  allocations: WalletOpeningCreditAllocationItemDto[];
+}
+
 export interface WalletSummaryDto {
   availableBalance: number;
   pendingBalance: number;
@@ -46,6 +68,7 @@ export interface WalletTransactionDto {
 export interface WalletResponseDto {
   success: true;
   member: WalletMemberDto;
+  openingCreditAllocation: WalletOpeningCreditAllocationDto | null;
   summary: WalletSummaryDto;
   pairingWindows: [];
   transactions: WalletTransactionDto[];

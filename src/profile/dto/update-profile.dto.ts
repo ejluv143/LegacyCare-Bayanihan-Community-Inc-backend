@@ -57,13 +57,9 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
-  @Matches(
-    /^\d{4}-\d{2}-\d{2}$/,
-    {
-      message:
-        'Date of birth must use YYYY-MM-DD format.',
-    },
-  )
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'Date of birth must use YYYY-MM-DD format.',
+  })
   dateOfBirth?: string | null;
 
   /* =======================================================
@@ -74,8 +70,7 @@ export class UpdateProfileDto {
   @IsEmail(
     {},
     {
-      message:
-        'Please provide a valid email address.',
+      message: 'Please provide a valid email address.',
     },
   )
   @MaxLength(191)

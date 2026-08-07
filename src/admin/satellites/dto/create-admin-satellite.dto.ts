@@ -1,4 +1,4 @@
-import { Transform, Type } from "class-transformer";
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
@@ -14,35 +14,35 @@ import {
   Min,
   MinLength,
   ValidateNested,
-} from "class-validator";
+} from 'class-validator';
 
 import {
   SatelliteBusinessType,
   SatelliteCivilStatus,
   SatelliteGender,
   SatelliteLevel,
-} from "../../../generated/prisma/client";
+} from '../../../generated/prisma/client';
 
 function trim(value: unknown): unknown {
-  return typeof value === "string" ? value.trim() : value;
+  return typeof value === 'string' ? value.trim() : value;
 }
 
 function optionalTrim(value: unknown): unknown {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
   const trimmed = value.trim();
 
-  return trimmed === "" ? undefined : trimmed;
+  return trimmed === '' ? undefined : trimmed;
 }
 
 function normalizeEnum(value: unknown): unknown {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
-  return value.trim().replace(/-/g, "_").toUpperCase();
+  return value.trim().replace(/-/g, '_').toUpperCase();
 }
 
 export class CreateSatelliteLocationDto {
@@ -113,7 +113,7 @@ export class CreateSatelliteManagerDto {
   @IsDateString(
     {},
     {
-      message: "birthDate must be a valid date",
+      message: 'birthDate must be a valid date',
     },
   )
   birthDate?: string;
@@ -123,13 +123,13 @@ export class CreateSatelliteManagerDto {
   )
   @IsOptional()
   @IsEnum(SatelliteGender, {
-    message: "gender must be male, female, or prefer-not-to-say",
+    message: 'gender must be male, female, or prefer-not-to-say',
   })
   gender?: SatelliteGender;
 
   @Transform(({ value }) => normalizeEnum(value))
   @IsEnum(SatelliteCivilStatus, {
-    message: "civilStatus must be single, married, widowed, or separated",
+    message: 'civilStatus must be single, married, widowed, or separated',
   })
   civilStatus!: SatelliteCivilStatus;
 
@@ -142,7 +142,7 @@ export class CreateSatelliteManagerDto {
   @Transform(({ value }) => trim(value))
   @IsString()
   @Matches(/^\+?[0-9][0-9\s()-]{7,20}$/, {
-    message: "contactNumber must be a valid phone number",
+    message: 'contactNumber must be a valid phone number',
   })
   contactNumber!: string;
 
@@ -150,17 +150,17 @@ export class CreateSatelliteManagerDto {
   @IsOptional()
   @IsString()
   @Matches(/^\+?[0-9][0-9\s()-]{7,20}$/, {
-    message: "alternateContactNumber must be a valid phone number",
+    message: 'alternateContactNumber must be a valid phone number',
   })
   alternateContactNumber?: string;
 
   @Transform(({ value }) =>
-    typeof value === "string" ? value.trim().toLowerCase() : value,
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   @IsEmail(
     {},
     {
-      message: "email must be a valid email address",
+      message: 'email must be a valid email address',
     },
   )
   @MaxLength(191)
@@ -193,7 +193,7 @@ export class CreateSatelliteOperationDto {
   @IsDateString(
     {},
     {
-      message: "openingDate must be a valid date",
+      message: 'openingDate must be a valid date',
     },
   )
   openingDate?: string;
@@ -236,7 +236,7 @@ export class CreateSatellitePayoutAccountDto {
   @IsOptional()
   @IsString()
   @Matches(/^\+?[0-9][0-9\s()-]{7,20}$/, {
-    message: "gcashNumber must be a valid phone number",
+    message: 'gcashNumber must be a valid phone number',
   })
   gcashNumber?: string;
 
@@ -261,14 +261,14 @@ export class CreateSatellitePayoutAccountDto {
 
 export class CreateSatelliteAccountDto {
   @Transform(({ value }) =>
-    typeof value === "string" ? value.trim().toLowerCase() : value,
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   @IsString()
   @MinLength(4)
   @MaxLength(50)
   @Matches(/^[a-z0-9._-]+$/, {
     message:
-      "username may only contain letters, numbers, periods, underscores, and hyphens",
+      'username may only contain letters, numbers, periods, underscores, and hyphens',
   })
   username!: string;
 
@@ -313,13 +313,13 @@ export class CreateAdminSatelliteDto {
 
   @Transform(({ value }) => normalizeEnum(value))
   @IsEnum(SatelliteBusinessType, {
-    message: "businessType must be franchise, company-owned, or affiliate",
+    message: 'businessType must be franchise, company-owned, or affiliate',
   })
   businessType!: SatelliteBusinessType;
 
   @Transform(({ value }) => normalizeEnum(value))
   @IsEnum(SatelliteLevel, {
-    message: "satelliteLevel must be regional, provincial, city, or barangay",
+    message: 'satelliteLevel must be regional, provincial, city, or barangay',
   })
   satelliteLevel!: SatelliteLevel;
 

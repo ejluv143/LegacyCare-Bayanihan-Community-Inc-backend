@@ -1,24 +1,24 @@
-import { Transform } from "class-transformer";
-import { IsEnum, IsOptional, IsString, MaxLength } from "class-validator";
+import { Transform } from 'class-transformer';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
-import { SatelliteStatus } from "../../../generated/prisma/client";
+import { SatelliteStatus } from '../../../generated/prisma/client';
 
 function normalizeStatus(value: unknown): unknown {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
-  return value.trim().replace(/-/g, "_").toUpperCase();
+  return value.trim().replace(/-/g, '_').toUpperCase();
 }
 
 function optionalTrim(value: unknown): unknown {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
   const trimmed = value.trim();
 
-  return trimmed === "" ? undefined : trimmed;
+  return trimmed === '' ? undefined : trimmed;
 }
 
 export class UpdateAdminSatelliteStatusDto {

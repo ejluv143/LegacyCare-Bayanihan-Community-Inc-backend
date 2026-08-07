@@ -3,23 +3,15 @@
 ========================================================= */
 
 export type AdminGenealogyClientStatus =
-  | "active"
-  | "pending"
-  | "suspended"
-  | "inactive";
+  'active' | 'pending' | 'suspended' | 'inactive';
 
-export type AdminGenealogyMembershipType =
-  | "basic"
-  | "premium";
+export type AdminGenealogyMembershipType = 'basic' | 'premium';
 
 /* =========================================================
    NETWORK PLACEMENT
 ========================================================= */
 
-export type AdminNetworkPlacement =
-  | "root"
-  | "left"
-  | "right";
+export type AdminNetworkPlacement = 'root' | 'left' | 'right';
 
 /* =========================================================
    GENEALOGY CLIENT
@@ -34,22 +26,17 @@ export interface AdminGenealogyClient {
 
   username: string;
 
-  membershipType:
-    AdminGenealogyMembershipType;
+  membershipType: AdminGenealogyMembershipType;
 
-  status:
-    AdminGenealogyClientStatus;
+  status: AdminGenealogyClientStatus;
 
   referralCode: string;
 
-  sponsorId:
-    string | null;
+  sponsorId: string | null;
 
-  sponsorName:
-    string | null;
+  sponsorName: string | null;
 
-  sponsorMembershipId:
-    string | null;
+  sponsorMembershipId: string | null;
 
   directReferralCount: number;
 
@@ -79,24 +66,19 @@ export interface AdminNetworkTreeNode {
 
   username: string;
 
-  membershipType:
-    AdminGenealogyMembershipType;
+  membershipType: AdminGenealogyMembershipType;
 
-  status:
-    AdminGenealogyClientStatus;
+  status: AdminGenealogyClientStatus;
 
-  placement:
-    AdminNetworkPlacement;
+  placement: AdminNetworkPlacement;
 
   verified: boolean;
 
   directReferralCount: number;
 
-  parentId:
-    string | null;
+  parentId: string | null;
 
-  children:
-    AdminNetworkTreeNode[];
+  children: AdminNetworkTreeNode[];
 }
 
 /* =========================================================
@@ -129,8 +111,7 @@ export interface AdminGenealogyClientsResponse {
   message: string;
 
   data: {
-    clients:
-      AdminGenealogyClient[];
+    clients: AdminGenealogyClient[];
   };
 }
 
@@ -144,10 +125,8 @@ export interface AdminGenealogyTreeResponse {
   message: string;
 
   data: {
-    client:
-      AdminGenealogyClient;
+    client: AdminGenealogyClient;
 
-    root:
-      AdminNetworkTreeNode | null;
+    root: AdminNetworkTreeNode | null;
   };
 }

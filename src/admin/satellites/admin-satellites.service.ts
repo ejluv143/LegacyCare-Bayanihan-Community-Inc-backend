@@ -1,4 +1,4 @@
-import { randomInt } from "node:crypto";
+import { randomInt } from 'node:crypto';
 
 import {
   BadRequestException,
@@ -6,8 +6,8 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-} from "@nestjs/common";
-import * as argon2 from "argon2";
+} from '@nestjs/common';
+import * as argon2 from 'argon2';
 
 import {
   Prisma,
@@ -18,15 +18,15 @@ import {
   SatelliteGender,
   SatelliteLevel,
   SatelliteStatus,
-} from "../../generated/prisma/client";
-import { PrismaService } from "../database/prisma/prisma.service";
-import { AdminSatellitesQueryDto } from "./dto/admin-satellites-query.dto";
-import { CreateAdminSatelliteDto } from "./dto/create-admin-satellite.dto";
-import { ResetSatellitePasswordDto } from "./dto/reset-satellite-password.dto";
-import { UpdateAdminSatelliteStatusDto } from "./dto/update-admin-satellite-status.dto";
-import { UpdateAdminSatelliteDto } from "./dto/update-admin-satellite.dto";
+} from '../../generated/prisma/client';
+import { PrismaService } from '../database/prisma/prisma.service';
+import { AdminSatellitesQueryDto } from './dto/admin-satellites-query.dto';
+import { CreateAdminSatelliteDto } from './dto/create-admin-satellite.dto';
+import { ResetSatellitePasswordDto } from './dto/reset-satellite-password.dto';
+import { UpdateAdminSatelliteStatusDto } from './dto/update-admin-satellite-status.dto';
+import { UpdateAdminSatelliteDto } from './dto/update-admin-satellite.dto';
 
-const CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const CODE_CHARACTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_RANDOM_LENGTH = 6;
 const MAX_CODE_ATTEMPTS = 10;
 
@@ -55,8 +55,8 @@ export interface AdminSatelliteApiResponse {
   id: string;
   satelliteCode: string;
   satelliteName: string;
-  status: "pending" | "active" | "suspended" | "inactive" | "closed";
-  businessType: "franchise" | "company-owned" | "affiliate";
+  status: 'pending' | 'active' | 'suspended' | 'inactive' | 'closed';
+  businessType: 'franchise' | 'company-owned' | 'affiliate';
   memberCount: number;
   manager: {
     firstName: string;
@@ -64,8 +64,8 @@ export interface AdminSatelliteApiResponse {
     lastName: string;
     suffix: string | null;
     fullName: string;
-    gender: "male" | "female" | "prefer-not-to-say" | null;
-    civilStatus: "single" | "married" | "widowed" | "separated";
+    gender: 'male' | 'female' | 'prefer-not-to-say' | null;
+    civilStatus: 'single' | 'married' | 'widowed' | 'separated';
     birthDate: string | null;
     nationality: string;
     contactNumber: string;
@@ -82,7 +82,7 @@ export interface AdminSatelliteApiResponse {
     completeAddress: string;
   };
   operation: {
-    satelliteLevel: "regional" | "provincial" | "city" | "barangay";
+    satelliteLevel: 'regional' | 'provincial' | 'city' | 'barangay';
     coverageArea: string;
     operatingHours: string;
     openingDate: string | null;
@@ -103,7 +103,7 @@ export interface AdminSatelliteApiResponse {
   };
   account: {
     username: string;
-    role: "satellite-admin" | "manager";
+    role: 'satellite-admin' | 'manager';
   };
   permissions: {
     canRegisterMembers: boolean;
@@ -150,8 +150,8 @@ export interface AdminSatelliteStatusHistoryResponse {
   history: Array<{
     id: string;
     satelliteId: string;
-    previousStatus: "pending" | "active" | "suspended" | "inactive" | "closed";
-    newStatus: "pending" | "active" | "suspended" | "inactive" | "closed";
+    previousStatus: 'pending' | 'active' | 'suspended' | 'inactive' | 'closed';
+    newStatus: 'pending' | 'active' | 'suspended' | 'inactive' | 'closed';
     reason: string | null;
     changedBy: {
       id: string;
@@ -271,7 +271,7 @@ export class AdminSatellitesService {
     });
 
     if (!satellite) {
-      throw new NotFoundException("Satellite office was not found.");
+      throw new NotFoundException('Satellite office was not found.');
     }
 
     return mapSatellite(satellite);
@@ -282,9 +282,9 @@ export class AdminSatellitesService {
   ): Promise<CreateAdminSatelliteResponse> {
     if (dto.account.password !== dto.account.confirmPassword) {
       throw new BadRequestException({
-        message: "The passwords do not match.",
+        message: 'The passwords do not match.',
         errors: {
-          confirmPassword: ["The password confirmation does not match."],
+          confirmPassword: ['The password confirmation does not match.'],
         },
       });
     }
@@ -374,7 +374,7 @@ export class AdminSatellitesService {
 
       return {
         message:
-          "Satellite office created successfully and is pending approval.",
+          'Satellite office created successfully and is pending approval.',
         satellite: mapSatellite(satellite),
       };
     } catch (error: unknown) {
@@ -548,9 +548,9 @@ export class AdminSatellitesService {
       (!dto.reason || dto.reason.trim().length < 5)
     ) {
       throw new BadRequestException({
-        message: "A clear reason is required for this status.",
+        message: 'A clear reason is required for this status.',
         errors: {
-          reason: ["The reason must contain at least 5 characters."],
+          reason: ['The reason must contain at least 5 characters.'],
         },
       });
     }
@@ -563,7 +563,7 @@ export class AdminSatellitesService {
       });
 
       if (!current) {
-        throw new NotFoundException("Satellite office was not found.");
+        throw new NotFoundException('Satellite office was not found.');
       }
 
       if (current.status === dto.status) {
@@ -616,7 +616,7 @@ export class AdminSatellitesService {
       where: {
         satelliteId,
       },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
     return {
@@ -629,8 +629,8 @@ export class AdminSatellitesService {
         changedBy:
           entry.changedByAdminId || entry.changedByAdminName
             ? {
-                id: entry.changedByAdminId ?? "admin",
-                fullName: entry.changedByAdminName ?? "Administrator",
+                id: entry.changedByAdminId ?? 'admin',
+                fullName: entry.changedByAdminName ?? 'Administrator',
                 email: null,
               }
             : null,
@@ -645,9 +645,9 @@ export class AdminSatellitesService {
   ): Promise<SatelliteMessageResponse> {
     if (dto.password !== dto.confirmPassword) {
       throw new BadRequestException({
-        message: "The passwords do not match.",
+        message: 'The passwords do not match.',
         errors: {
-          confirmPassword: ["The password confirmation does not match."],
+          confirmPassword: ['The password confirmation does not match.'],
         },
       });
     }
@@ -673,7 +673,7 @@ export class AdminSatellitesService {
     });
 
     return {
-      message: "Satellite administrator password reset successfully.",
+      message: 'Satellite administrator password reset successfully.',
     };
   }
 
@@ -694,18 +694,18 @@ export class AdminSatellitesService {
     });
 
     if (!satellite) {
-      throw new NotFoundException("Satellite office was not found.");
+      throw new NotFoundException('Satellite office was not found.');
     }
 
     if (satellite.status === SatelliteStatus.ACTIVE) {
       throw new ConflictException(
-        "An active satellite cannot be deleted. Change its status first.",
+        'An active satellite cannot be deleted. Change its status first.',
       );
     }
 
     if (satellite._count.members > 0) {
       throw new ConflictException(
-        "This satellite still has assigned members and cannot be deleted.",
+        'This satellite still has assigned members and cannot be deleted.',
       );
     }
 
@@ -716,7 +716,7 @@ export class AdminSatellitesService {
     });
 
     return {
-      message: "Satellite office deleted successfully.",
+      message: 'Satellite office deleted successfully.',
     };
   }
 
@@ -803,24 +803,24 @@ export class AdminSatellitesService {
   private buildOrderBy(
     query: AdminSatellitesQueryDto,
   ): Prisma.SatelliteOrderByWithRelationInput {
-    const direction = query.sortOrder ?? "desc";
+    const direction = query.sortOrder ?? 'desc';
 
     switch (query.sortBy) {
-      case "satelliteName":
+      case 'satelliteName':
         return { satelliteName: direction };
-      case "satelliteCode":
+      case 'satelliteCode':
         return { satelliteCode: direction };
-      case "status":
+      case 'status':
         return { status: direction };
-      case "memberCount":
+      case 'memberCount':
         return {
           members: {
             _count: direction,
           },
         };
-      case "updatedAt":
+      case 'updatedAt':
         return { updatedAt: direction };
-      case "createdAt":
+      case 'createdAt':
       default:
         return { createdAt: direction };
     }
@@ -837,7 +837,7 @@ export class AdminSatellitesService {
     });
 
     if (!satellite) {
-      throw new NotFoundException("Satellite office was not found.");
+      throw new NotFoundException('Satellite office was not found.');
     }
   }
 
@@ -848,7 +848,7 @@ export class AdminSatellitesService {
     const locationCode = `${toCodePart(province)}${toCodePart(city)}`;
 
     for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt += 1) {
-      let suffix = "";
+      let suffix = '';
 
       for (let index = 0; index < CODE_RANDOM_LENGTH; index += 1) {
         suffix += CODE_CHARACTERS[randomInt(CODE_CHARACTERS.length)];
@@ -871,17 +871,17 @@ export class AdminSatellitesService {
     }
 
     throw new InternalServerErrorException(
-      "Unable to generate a unique satellite code. Please try again.",
+      'Unable to generate a unique satellite code. Please try again.',
     );
   }
 
   private throwKnownDatabaseError(error: unknown): never {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
+      error.code === 'P2002'
     ) {
       throw new ConflictException(
-        "A satellite with the same username, manager email, contact number, identification number, or tax number already exists.",
+        'A satellite with the same username, manager email, contact number, identification number, or tax number already exists.',
       );
     }
 
@@ -897,7 +897,7 @@ function mapSatellite(satellite: SatelliteRecord): AdminSatelliteApiResponse {
     !satellite.permissions
   ) {
     throw new InternalServerErrorException(
-      "The satellite record is incomplete.",
+      'The satellite record is incomplete.',
     );
   }
 
@@ -910,7 +910,7 @@ function mapSatellite(satellite: SatelliteRecord): AdminSatelliteApiResponse {
     manager.suffix,
   ]
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
 
   const completeAddress = [
     satellite.streetAddress,
@@ -921,7 +921,7 @@ function mapSatellite(satellite: SatelliteRecord): AdminSatelliteApiResponse {
     satellite.zipCode,
   ]
     .filter(Boolean)
-    .join(", ");
+    .join(', ');
 
   return {
     id: satellite.id,
@@ -979,8 +979,8 @@ function mapSatellite(satellite: SatelliteRecord): AdminSatelliteApiResponse {
       username: satellite.account.username,
       role:
         satellite.account.role === SatelliteAccountRole.MANAGER
-          ? "manager"
-          : "satellite-admin",
+          ? 'manager'
+          : 'satellite-admin',
     },
     permissions: {
       canRegisterMembers: satellite.permissions.canRegisterMembers,
@@ -997,41 +997,37 @@ function mapSatellite(satellite: SatelliteRecord): AdminSatelliteApiResponse {
 
 function toApiStatus(
   status: SatelliteStatus,
-): "pending" | "active" | "suspended" | "inactive" | "closed" {
+): 'pending' | 'active' | 'suspended' | 'inactive' | 'closed' {
   return status.toLowerCase() as
-    | "pending"
-    | "active"
-    | "suspended"
-    | "inactive"
-    | "closed";
+    'pending' | 'active' | 'suspended' | 'inactive' | 'closed';
 }
 
 function toApiBusinessType(
   type: SatelliteBusinessType,
-): "franchise" | "company-owned" | "affiliate" {
+): 'franchise' | 'company-owned' | 'affiliate' {
   return type === SatelliteBusinessType.COMPANY_OWNED
-    ? "company-owned"
-    : (type.toLowerCase() as "franchise" | "affiliate");
+    ? 'company-owned'
+    : (type.toLowerCase() as 'franchise' | 'affiliate');
 }
 
 function toApiLevel(
   level: SatelliteLevel,
-): "regional" | "provincial" | "city" | "barangay" {
-  return level.toLowerCase() as "regional" | "provincial" | "city" | "barangay";
+): 'regional' | 'provincial' | 'city' | 'barangay' {
+  return level.toLowerCase() as 'regional' | 'provincial' | 'city' | 'barangay';
 }
 
 function toApiGender(
   gender: SatelliteGender,
-): "male" | "female" | "prefer-not-to-say" {
+): 'male' | 'female' | 'prefer-not-to-say' {
   return gender === SatelliteGender.PREFER_NOT_TO_SAY
-    ? "prefer-not-to-say"
-    : (gender.toLowerCase() as "male" | "female");
+    ? 'prefer-not-to-say'
+    : (gender.toLowerCase() as 'male' | 'female');
 }
 
 function toApiCivilStatus(
   status: SatelliteCivilStatus,
-): "single" | "married" | "widowed" | "separated" {
-  return status.toLowerCase() as "single" | "married" | "widowed" | "separated";
+): 'single' | 'married' | 'widowed' | 'separated' {
+  return status.toLowerCase() as 'single' | 'married' | 'widowed' | 'separated';
 }
 
 function requiresStatusReason(status: SatelliteStatus): boolean {
@@ -1051,7 +1047,7 @@ function formatDateOnly(value: Date): string {
 }
 
 function toCodePart(value: string): string {
-  const normalized = value.replace(/[^a-zA-Z]/g, "").toUpperCase();
+  const normalized = value.replace(/[^a-zA-Z]/g, '').toUpperCase();
 
-  return normalized.slice(0, 3).padEnd(3, "X");
+  return normalized.slice(0, 3).padEnd(3, 'X');
 }

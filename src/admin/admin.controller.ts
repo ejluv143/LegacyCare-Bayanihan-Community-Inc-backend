@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 
 import { AdminRoleGuard } from '../auth/guards/admin-role.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -15,9 +8,7 @@ import { CreateMemberDto } from './database/create-member.dto';
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
 export class AdminController {
-  constructor(
-    private readonly adminService: AdminService,
-  ) {}
+  constructor(private readonly adminService: AdminService) {}
 
   @Get('members')
   getMembers() {
@@ -29,21 +20,14 @@ export class AdminController {
     @Body()
     createMemberDto: CreateMemberDto,
   ) {
-    return this.adminService.createMember(
-      createMemberDto,
-    );
+    return this.adminService.createMember(createMemberDto);
   }
 
-  @Post(
-    'members/:memberId/credentials',
-  )
+  @Post('members/:memberId/credentials')
   regenerateMemberCredentials(
     @Param('memberId')
     memberId: string,
   ) {
-    return this.adminService
-      .regenerateMemberCredentials(
-        memberId,
-      );
+    return this.adminService.regenerateMemberCredentials(memberId);
   }
 }

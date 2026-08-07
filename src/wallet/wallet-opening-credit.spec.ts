@@ -10,23 +10,28 @@ import {
 import {
   createMemberOpeningCredit,
   MEMBER_OPENING_CREDIT_AMOUNT,
+  MEMBER_OPENING_CREDIT_PROTECTED_LIFE_COUNT,
+  MEMBER_OPENING_CREDIT_SHARE_AMOUNT,
 } from './wallet-opening-credit';
 
 describe('createMemberOpeningCredit', () => {
   it('posts one completed PHP 200 funding credit with a member-scoped key', async () => {
-    const create = jest.fn<(input: unknown) => Promise<unknown>>();
-    create.mockResolvedValue({ id: 'wallet-entry' });
+    const upsert = jest.fn<(input: unknown) => Promise<unknown>>();
+    upsert.mockResolvedValue({ id: 'wallet-entry' });
     const transaction = {
       walletTransaction: {
-        create,
+        upsert,
       },
     } as unknown as Prisma.TransactionClient;
 
     await createMemberOpeningCredit(transaction, 'member-1');
 
-    expect(create).toHaveBeenCalledTimes(1);
-    expect(create).toHaveBeenCalledWith({
-      data: {
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(upsert).toHaveBeenCalledWith({
+      where: {
+        sourceKey: 'opening-credit:member-1',
+      },
+      create: {
         memberId: 'member-1',
         type: WalletTransactionType.OPENING_CREDIT,
         direction: WalletTransactionDirection.CREDIT,
@@ -35,13 +40,23 @@ describe('createMemberOpeningCredit', () => {
         sourceKey: 'opening-credit:member-1',
         description: 'One-time new member opening credit.',
       },
+      update: {},
     });
 
-    const call = create.mock.calls[0][0] as {
-      data: {
+    const call = upsert.mock.calls[0][0] as {
+      create: {
         amount: Decimal;
       };
     };
-    expect(call.data.amount.toNumber()).toBe(MEMBER_OPENING_CREDIT_AMOUNT);
+    expect(call.create.amount.toNumber()).toBe(MEMBER_OPENING_CREDIT_AMOUNT);
+  });
+
+  it('allocates the opening credit across one member and four beneficiaries', () => {
+    expect(MEMBER_OPENING_CREDIT_PROTECTED_LIFE_COUNT).toBe(5);
+    expect(MEMBER_OPENING_CREDIT_SHARE_AMOUNT).toBe(40);
+    expect(
+      MEMBER_OPENING_CREDIT_SHARE_AMOUNT *
+        MEMBER_OPENING_CREDIT_PROTECTED_LIFE_COUNT,
+    ).toBe(MEMBER_OPENING_CREDIT_AMOUNT);
   });
 });

@@ -1,4 +1,4 @@
-import { Transform } from "class-transformer";
+import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEmail,
@@ -8,68 +8,52 @@ import {
   Matches,
   MaxLength,
   MinLength,
-} from "class-validator";
+} from 'class-validator';
 
-import { MembershipType } from "../../generated/prisma/client";
+import { MembershipType } from '../../generated/prisma/client';
 
 function trimValue(value: unknown): unknown {
-  return typeof value === "string"
-    ? value.trim()
-    : value;
+  return typeof value === 'string' ? value.trim() : value;
 }
 
 function optionalTrimValue(value: unknown): unknown {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
   const trimmed = value.trim();
 
-  return trimmed.length > 0
-    ? trimmed
-    : undefined;
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function lowercaseValue(value: unknown): unknown {
-  return typeof value === "string"
-    ? value.trim().toLowerCase()
-    : value;
+  return typeof value === 'string' ? value.trim().toLowerCase() : value;
 }
 
-function optionalLowercaseValue(
-  value: unknown,
-): unknown {
-  if (typeof value !== "string") {
+function optionalLowercaseValue(value: unknown): unknown {
+  if (typeof value !== 'string') {
     return value;
   }
 
-  const trimmed = value
-    .trim()
-    .toLowerCase();
+  const trimmed = value.trim().toLowerCase();
 
-  return trimmed.length > 0
-    ? trimmed
-    : undefined;
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function uppercaseValue(value: unknown): unknown {
-  return typeof value === "string"
-    ? value.trim().toUpperCase()
-    : value;
+  return typeof value === 'string' ? value.trim().toUpperCase() : value;
 }
 
 export class RegisterMemberDto {
   @Transform(({ value }) => trimValue(value))
   @IsString()
   @MinLength(1, {
-    message: "First name is required.",
+    message: 'First name is required.',
   })
   @MaxLength(100)
   firstName!: string;
 
-  @Transform(({ value }) =>
-    optionalTrimValue(value),
-  )
+  @Transform(({ value }) => optionalTrimValue(value))
   @IsOptional()
   @IsString()
   @MaxLength(100)
@@ -78,7 +62,7 @@ export class RegisterMemberDto {
   @Transform(({ value }) => trimValue(value))
   @IsString()
   @MinLength(1, {
-    message: "Last name is required.",
+    message: 'Last name is required.',
   })
   @MaxLength(100)
   lastName!: string;
@@ -86,8 +70,7 @@ export class RegisterMemberDto {
   @Transform(({ value }) => trimValue(value))
   @IsString()
   @MinLength(5, {
-    message:
-      "Address must contain at least 5 characters.",
+    message: 'Address must contain at least 5 characters.',
   })
   @MaxLength(500)
   address!: string;
@@ -95,21 +78,17 @@ export class RegisterMemberDto {
   @IsDateString(
     {},
     {
-      message:
-        "Date of birth must be a valid date.",
+      message: 'Date of birth must be a valid date.',
     },
   )
   dateOfBirth!: string;
 
-  @Transform(({ value }) =>
-    optionalLowercaseValue(value),
-  )
+  @Transform(({ value }) => optionalLowercaseValue(value))
   @IsOptional()
   @IsEmail(
     {},
     {
-      message:
-        "Email must be a valid email address.",
+      message: 'Email must be a valid email address.',
     },
   )
   @MaxLength(191)
@@ -118,77 +97,60 @@ export class RegisterMemberDto {
   @Transform(({ value }) => trimValue(value))
   @IsString()
   @Matches(/^\+?[0-9][0-9\s()-]{7,20}$/, {
-    message:
-      "CP number must be a valid phone number.",
+    message: 'CP number must be a valid phone number.',
   })
   phone!: string;
 
-  @Transform(({ value }) =>
-    uppercaseValue(value),
-  )
+  @Transform(({ value }) => uppercaseValue(value))
   @IsEnum(MembershipType, {
-    message:
-      "Membership type must be valid.",
+    message: 'Membership type must be valid.',
   })
   membershipType!: MembershipType;
 
-  @Transform(({ value }) =>
-    uppercaseValue(value),
-  )
+  @Transform(({ value }) => uppercaseValue(value))
   @IsString()
   @MinLength(6, {
-    message:
-      "Activation code must contain at least 6 characters.",
+    message: 'Activation code must contain at least 6 characters.',
   })
   @MaxLength(40)
   @Matches(/^[A-Z0-9-]+$/, {
-    message:
-      "Activation code may only contain letters, numbers, and hyphens.",
+    message: 'Activation code may only contain letters, numbers, and hyphens.',
   })
   activationCode!: string;
 
-  @Transform(({ value }) =>
-    uppercaseValue(value),
-  )
+  @Transform(({ value }) => uppercaseValue(value))
   @IsString()
   @MinLength(1, {
-    message:
-      "Referral code is required.",
+    message: 'Referral code is required.',
   })
   @MaxLength(40)
   @Matches(/^[A-Z0-9-]+$/, {
-    message:
-      "Referral code may only contain letters, numbers, and hyphens.",
+    message: 'Referral code may only contain letters, numbers, and hyphens.',
   })
   referralCode!: string;
 
-  @Transform(({ value }) =>
-    lowercaseValue(value),
-  )
+  @Transform(({ value }) => lowercaseValue(value))
   @IsString()
   @MinLength(4, {
-    message:
-      "Username must contain at least 4 characters.",
+    message: 'Username must contain at least 4 characters.',
   })
   @MaxLength(50)
   @Matches(/^[a-z0-9._-]+$/, {
     message:
-      "Username may only contain letters, numbers, periods, underscores, and hyphens.",
+      'Username may only contain letters, numbers, periods, underscores, and hyphens.',
   })
   username!: string;
 
   @IsString()
   @MinLength(6, {
-    message:
-      "Password must contain at least 6 characters.",
+    message: 'Password must contain at least 6 characters.',
   })
   @MaxLength(128)
   password!: string;
 
   @IsString()
   @MinLength(6, {
-    message:
-      "Confirm password must contain at least 6 characters.",
+    message: 'Confirm password must contain at least 6 characters.',
   })
   @MaxLength(128)
   confirmPassword!: string;

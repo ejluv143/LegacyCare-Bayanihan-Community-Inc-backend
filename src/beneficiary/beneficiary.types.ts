@@ -1,16 +1,13 @@
-export type BeneficiaryStatus =
-  | "empty"
-  | "incomplete"
-  | "completed";
+export type BeneficiaryStatus = 'empty' | 'incomplete' | 'completed';
 
 export type BeneficiaryRelationship =
-  | "Spouse"
-  | "Child"
-  | "Parent"
-  | "Sibling"
-  | "Grandparent"
-  | "Guardian"
-  | "Other";
+  | 'Spouse'
+  | 'Child'
+  | 'Parent'
+  | 'Sibling'
+  | 'Grandparent'
+  | 'Guardian'
+  | 'Other';
 
 export interface Beneficiary {
   id: string;
@@ -24,7 +21,7 @@ export interface Beneficiary {
 
   status: BeneficiaryStatus;
 
-  accountType: "BENEFICIARY";
+  accountType: 'BENEFICIARY';
   canLogin: false;
 
   createdAt: string;
@@ -41,7 +38,7 @@ export interface BeneficiarySlot {
   lastName: string;
 
   address: string;
-  relationship: BeneficiaryRelationship | "";
+  relationship: BeneficiaryRelationship | '';
 
   status: BeneficiaryStatus;
 }

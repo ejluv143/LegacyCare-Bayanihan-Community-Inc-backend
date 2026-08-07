@@ -1,15 +1,9 @@
 import 'dotenv/config';
 
-import {
-  INestApplication,
-  ValidationPipe,
-} from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
-import type {
-  IncomingMessage,
-  ServerResponse,
-} from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { AppModule } from './app.module';
 
@@ -24,8 +18,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'https://legacy-care-bayanihan-community-inc-omega.vercel.app',
 ];
 
-let serverPromise: Promise<HttpRequestHandler> | null =
-  null;
+let serverPromise: Promise<HttpRequestHandler> | null = null;
 
 function normalizeOrigin(origin: string): string {
   return origin.trim().replace(/\/+$/, '');
@@ -38,8 +31,7 @@ function getAllowedOrigins(): string[] {
   ]
     .filter(
       (value): value is string =>
-        typeof value === 'string' &&
-        value.trim().length > 0,
+        typeof value === 'string' && value.trim().length > 0,
     )
     .flatMap((value) => value.split(','))
     .map(normalizeOrigin)
@@ -47,31 +39,21 @@ function getAllowedOrigins(): string[] {
 
   return Array.from(
     new Set([
-      ...DEFAULT_ALLOWED_ORIGINS.map(
-        normalizeOrigin,
-      ),
+      ...DEFAULT_ALLOWED_ORIGINS.map(normalizeOrigin),
       ...configuredOrigins,
     ]),
   );
 }
 
-function configureApplication(
-  app: INestApplication,
-): void {
+function configureApplication(app: INestApplication): void {
   app.setGlobalPrefix('api');
 
-  const allowedOrigins =
-    getAllowedOrigins();
+  const allowedOrigins = getAllowedOrigins();
 
   app.enableCors({
     origin: (
-      requestOrigin:
-        | string
-        | undefined,
-      callback: (
-        error: Error | null,
-        allow?: boolean,
-      ) => void,
+      requestOrigin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
     ) => {
       /*
        * Requests from PowerShell, Postman,
@@ -83,22 +65,16 @@ function configureApplication(
         return;
       }
 
-      const normalizedRequestOrigin =
-        normalizeOrigin(requestOrigin);
+      const normalizedRequestOrigin = normalizeOrigin(requestOrigin);
 
-      const isAllowed =
-        allowedOrigins.includes(
-          normalizedRequestOrigin,
-        );
+      const isAllowed = allowedOrigins.includes(normalizedRequestOrigin);
 
       if (isAllowed) {
         callback(null, true);
         return;
       }
 
-      console.warn(
-        `Blocked CORS origin: ${normalizedRequestOrigin}`,
-      );
+      console.warn(`Blocked CORS origin: ${normalizedRequestOrigin}`);
 
       callback(
         new Error(
@@ -110,24 +86,11 @@ function configureApplication(
 
     credentials: true,
 
-    methods: [
-      'GET',
-      'POST',
-      'PUT',
-      'PATCH',
-      'DELETE',
-      'OPTIONS',
-    ],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    allowedHeaders: [
-      'Accept',
-      'Content-Type',
-      'Authorization',
-    ],
+    allowedHeaders: ['Accept', 'Content-Type', 'Authorization'],
 
-    exposedHeaders: [
-      'Content-Type',
-    ],
+    exposedHeaders: ['Content-Type'],
 
     optionsSuccessStatus: 204,
     preflightContinue: false,
@@ -146,20 +109,13 @@ function configureApplication(
 }
 
 async function createApplication(): Promise<INestApplication> {
-  const app = await NestFactory.create(
-    AppModule,
-    {
-      /*
-       * Keep Nest logs enabled in Vercel
-       * so production errors appear in Logs.
-       */
-      logger: [
-        'error',
-        'warn',
-        'log',
-      ],
-    },
-  );
+  const app = await NestFactory.create(AppModule, {
+    /*
+     * Keep Nest logs enabled in Vercel
+     * so production errors appear in Logs.
+     */
+    logger: ['error', 'warn', 'log'],
+  });
 
   configureApplication(app);
 
@@ -175,24 +131,21 @@ async function createServer(): Promise<HttpRequestHandler> {
    */
   await app.init();
 
-  const httpAdapter =
-    app.getHttpAdapter();
+  const httpAdapter = app.getHttpAdapter();
 
   return httpAdapter.getInstance() as HttpRequestHandler;
 }
 
 async function getServer(): Promise<HttpRequestHandler> {
   if (!serverPromise) {
-    serverPromise = createServer().catch(
-      (error: unknown) => {
-        /*
-         * Clear the cached promise so a later
-         * invocation can retry initialization.
-         */
-        serverPromise = null;
-        throw error;
-      },
-    );
+    serverPromise = createServer().catch((error: unknown) => {
+      /*
+       * Clear the cached promise so a later
+       * invocation can retry initialization.
+       */
+      serverPromise = null;
+      throw error;
+    });
   }
 
   return serverPromise;
@@ -212,28 +165,17 @@ export default async function handler(
         ? error.message
         : 'Unknown server initialization error';
 
-    console.error(
-      'Vercel request handler failed:',
-      error,
-    );
+    console.error('Vercel request handler failed:', error);
 
     if (!response.headersSent) {
       response.statusCode = 500;
-      response.setHeader(
-        'Content-Type',
-        'application/json; charset=utf-8',
-      );
+      response.setHeader('Content-Type', 'application/json; charset=utf-8');
 
       response.end(
         JSON.stringify({
           statusCode: 500,
-          message:
-            'Internal server error',
-          error:
-            process.env.NODE_ENV ===
-            'development'
-              ? message
-              : undefined,
+          message: 'Internal server error',
+          error: process.env.NODE_ENV === 'development' ? message : undefined,
         }),
       );
     }
@@ -243,17 +185,9 @@ export default async function handler(
 }
 
 function getLocalPort(): number {
-  const parsedPort =
-    Number.parseInt(
-      process.env.PORT ?? '3001',
-      10,
-    );
+  const parsedPort = Number.parseInt(process.env.PORT ?? '3001', 10);
 
-  if (
-    Number.isInteger(parsedPort) &&
-    parsedPort > 0 &&
-    parsedPort <= 65535
-  ) {
+  if (Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535) {
     return parsedPort;
   }
 
@@ -264,19 +198,11 @@ async function bootstrapLocal(): Promise<void> {
   const app = await createApplication();
   const port = getLocalPort();
 
-  await app.listen(
-    port,
-    '0.0.0.0',
-  );
+  await app.listen(port, '0.0.0.0');
 
-  console.log(
-    `Legacy Care backend is running at http://localhost:${port}/api`,
-  );
+  console.log(`Legacy Care backend is running at http://localhost:${port}/api`);
 
-  console.log(
-    'Allowed frontend origins:',
-    getAllowedOrigins(),
-  );
+  console.log('Allowed frontend origins:', getAllowedOrigins());
 }
 
 /*
@@ -285,14 +211,9 @@ async function bootstrapLocal(): Promise<void> {
  * is running outside Vercel.
  */
 if (process.env.VERCEL !== '1') {
-  void bootstrapLocal().catch(
-    (error: unknown) => {
-      console.error(
-        'Unable to start the Legacy Care backend:',
-        error,
-      );
+  void bootstrapLocal().catch((error: unknown) => {
+    console.error('Unable to start the Legacy Care backend:', error);
 
-      process.exitCode = 1;
-    },
-  );
+    process.exitCode = 1;
+  });
 }

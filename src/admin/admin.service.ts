@@ -6,10 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import {
-  createHash,
-  randomInt,
-} from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 
 import * as argon2 from 'argon2';
 
@@ -23,8 +20,7 @@ import { createMemberOpeningCredit } from '../wallet/wallet-opening-credit';
 import { CreateMemberDto } from './database/create-member.dto';
 import { PrismaService } from './database/prisma/prisma.service';
 
-const CODE_CHARACTERS =
-  'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const CODE_CHARACTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const ACTIVATION_VALID_HOURS = 72;
 
@@ -32,14 +28,9 @@ const PASSWORD_MEMORY_COST = 19_456;
 const PASSWORD_TIME_COST = 2;
 const PASSWORD_PARALLELISM = 1;
 
-type FrontendMemberStatus =
-  | 'pending'
-  | 'active'
-  | 'suspended'
-  | 'inactive';
+type FrontendMemberStatus = 'pending' | 'active' | 'suspended' | 'inactive';
 
-type FrontendMembershipType =
-  'basic';
+type FrontendMembershipType = 'basic';
 
 interface MemberNameFields {
   firstName: string;
@@ -52,38 +43,21 @@ interface SponsorEligibilityFields {
   rootMarker: string | null;
 }
 
-function generateRandomCode(
-  length: number,
-): string {
+function generateRandomCode(length: number): string {
   let code = '';
 
-  for (
-    let index = 0;
-    index < length;
-    index += 1
-  ) {
-    code +=
-      CODE_CHARACTERS[
-        randomInt(
-          CODE_CHARACTERS.length,
-        )
-      ];
+  for (let index = 0; index < length; index += 1) {
+    code += CODE_CHARACTERS[randomInt(CODE_CHARACTERS.length)];
   }
 
   return code;
 }
 
-function hashActivationCode(
-  code: string,
-): string {
-  return createHash('sha256')
-    .update(code)
-    .digest('hex');
+function hashActivationCode(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
 }
 
-async function hashPassword(
-  password: string,
-): Promise<string> {
+async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, {
     type: argon2.argon2id,
     memoryCost: PASSWORD_MEMORY_COST,
@@ -92,21 +66,13 @@ async function hashPassword(
   });
 }
 
-function buildFullName(
-  member: MemberNameFields,
-): string {
-  return [
-    member.firstName,
-    member.middleName,
-    member.lastName,
-  ]
+function buildFullName(member: MemberNameFields): string {
+  return [member.firstName, member.middleName, member.lastName]
     .filter(Boolean)
     .join(' ');
 }
 
-function mapMemberStatus(
-  status: MemberStatus,
-): FrontendMemberStatus {
+function mapMemberStatus(status: MemberStatus): FrontendMemberStatus {
   switch (status) {
     case MemberStatus.ACTIVE:
       return 'active';
@@ -129,16 +95,11 @@ function mapMembershipType(
   return 'basic';
 }
 
-function canMemberSponsor(
-  member: SponsorEligibilityFields,
-): boolean {
+function canMemberSponsor(member: SponsorEligibilityFields): boolean {
   /*
    * Active members can sponsor normally.
    */
-  if (
-    member.status ===
-    MemberStatus.ACTIVE
-  ) {
+  if (member.status === MemberStatus.ACTIVE) {
     return true;
   }
 
@@ -149,64 +110,52 @@ function canMemberSponsor(
    * completed activation.
    */
   return (
-    member.status ===
-      MemberStatus.PENDING_ACTIVATION &&
+    member.status === MemberStatus.PENDING_ACTIVATION &&
     member.rootMarker === 'ROOT'
   );
 }
 
 @Injectable()
 export class AdminService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Returns every registered member.
    */
   async getMembers() {
-    const members =
-      await this.prisma.member.findMany({
-        orderBy: {
-          createdAt: 'desc',
-        },
+    const members = await this.prisma.member.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
 
-        select: {
-          id: true,
-          membershipId: true,
+      select: {
+        id: true,
+        membershipId: true,
 
-          firstName: true,
-          middleName: true,
-          lastName: true,
+        firstName: true,
+        middleName: true,
+        lastName: true,
 
-          username: true,
-          email: true,
-          phone: true,
+        username: true,
+        email: true,
+        phone: true,
 
-          membershipType: true,
-          status: true,
+        membershipType: true,
+        status: true,
 
-          referralCode: true,
-          sponsorId: true,
+        referralCode: true,
+        sponsorId: true,
 
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     const sponsorIds = [
       ...new Set(
         members
-          .map(
-            (member) =>
-              member.sponsorId,
-          )
-          .filter(
-            (
-              sponsorId,
-            ): sponsorId is string =>
-              sponsorId !== null,
-          ),
+          .map((member) => member.sponsorId)
+          .filter((sponsorId): sponsorId is string => sponsorId !== null),
       ),
     ];
 
@@ -229,81 +178,53 @@ export class AdminService {
         : [];
 
     const sponsorNames = new Map(
-      sponsors.map((sponsor) => [
-        sponsor.id,
-        buildFullName(sponsor),
-      ]),
+      sponsors.map((sponsor) => [sponsor.id, buildFullName(sponsor)]),
     );
 
     return {
       success: true,
 
-      message:
-        'Members retrieved successfully',
+      message: 'Members retrieved successfully',
 
-      members: members.map(
-        (member) => ({
-          id: member.id,
+      members: members.map((member) => ({
+        id: member.id,
 
-          membershipId:
-            member.membershipId,
+        membershipId: member.membershipId,
 
-          firstName:
-            member.firstName,
+        firstName: member.firstName,
 
-          middleName:
-            member.middleName,
+        middleName: member.middleName,
 
-          lastName:
-            member.lastName,
+        lastName: member.lastName,
 
-          fullName:
-            buildFullName(member),
+        fullName: buildFullName(member),
 
-          username:
-            member.username,
+        username: member.username,
 
-          email:
-            member.email,
+        email: member.email,
 
-          phone:
-            member.phone,
+        phone: member.phone,
 
-          membershipType:
-            mapMembershipType(
-              member.membershipType,
-            ),
+        membershipType: mapMembershipType(member.membershipType),
 
-          status:
-            mapMemberStatus(
-              member.status,
-            ),
+        status: mapMemberStatus(member.status),
 
-          referralCode:
-            member.referralCode,
+        referralCode: member.referralCode,
 
-          referredById:
-            member.sponsorId,
+        referredById: member.sponsorId,
 
-          referredBy:
-            member.sponsorId
-              ? sponsorNames.get(
-                  member.sponsorId,
-                ) ?? null
-              : null,
+        referredBy: member.sponsorId
+          ? (sponsorNames.get(member.sponsorId) ?? null)
+          : null,
 
-          memberSince:
-            member.createdAt.toISOString(),
+        memberSince: member.createdAt.toISOString(),
 
-          activatedAt: null,
+        activatedAt: null,
 
-          createdAt:
-            member.createdAt.toISOString(),
+        createdAt: member.createdAt.toISOString(),
 
-          updatedAt:
-            member.updatedAt.toISOString(),
-        }),
-      ),
+        updatedAt: member.updatedAt.toISOString(),
+      })),
     };
   }
 
@@ -317,312 +238,221 @@ export class AdminService {
    * - Later member with valid code: linked to sponsor.
    * - Later member with invalid code: rejected.
    */
-  async createMember(
-    dto: CreateMemberDto,
-  ) {
-    const passwordHash =
-      await hashPassword(dto.password);
+  async createMember(dto: CreateMemberDto) {
+    const passwordHash = await hashPassword(dto.password);
 
-    const membershipId =
-      `LC-${generateRandomCode(12)}`;
+    const membershipId = `LC-${generateRandomCode(12)}`;
 
-    const referralCode =
-      `LC-REF-${generateRandomCode(8)}`;
+    const referralCode = `LC-REF-${generateRandomCode(8)}`;
 
-    const activationCode =
-      `LC-ACT-${generateRandomCode(12)}`;
+    const activationCode = `LC-ACT-${generateRandomCode(12)}`;
 
-    const activationExpiresAt =
-      new Date(
-        Date.now() +
-          ACTIVATION_VALID_HOURS *
-            60 *
-            60 *
-            1000,
-      );
+    const activationExpiresAt = new Date(
+      Date.now() + ACTIVATION_VALID_HOURS * 60 * 60 * 1000,
+    );
 
     try {
-      const member =
-        await this.prisma.$transaction(
-          async (transaction) => {
-            const existingMember =
-              await transaction.member.findFirst(
-                {
-                  select: {
-                    id: true,
-                  },
-                },
+      const member = await this.prisma.$transaction(
+        async (transaction) => {
+          const existingMember = await transaction.member.findFirst({
+            select: {
+              id: true,
+            },
+          });
+
+          let sponsorId: string | null = null;
+
+          let rootMarker: string | null = null;
+
+          const sponsorReferralCode = dto.sponsorReferralCode
+            ?.trim()
+            .toUpperCase();
+
+          /*
+           * The first member is the root member.
+           */
+          if (!existingMember) {
+            if (sponsorReferralCode) {
+              throw new BadRequestException(
+                'The first member cannot have a sponsor referral code',
               );
-
-            let sponsorId:
-              | string
-              | null = null;
-
-            let rootMarker:
-              | string
-              | null = null;
-
-            const sponsorReferralCode =
-              dto.sponsorReferralCode
-                ?.trim()
-                .toUpperCase();
-
-            /*
-             * The first member is the root member.
-             */
-            if (!existingMember) {
-              if (
-                sponsorReferralCode
-              ) {
-                throw new BadRequestException(
-                  'The first member cannot have a sponsor referral code',
-                );
-              }
-
-              rootMarker = 'ROOT';
             }
 
-            /*
-             * Later members may optionally provide
-             * a sponsor referral code.
-             *
-             * When it is blank, sponsorId remains
-             * null and member creation continues.
-             */
-            if (
-              existingMember &&
-              sponsorReferralCode
-            ) {
-              const sponsor =
-                await transaction.member.findUnique(
-                  {
-                    where: {
-                      referralCode:
-                        sponsorReferralCode,
-                    },
+            rootMarker = 'ROOT';
+          }
 
-                    select: {
-                      id: true,
-                      status: true,
-                      rootMarker: true,
-                    },
-                  },
-                );
-
-              if (!sponsor) {
-                throw new BadRequestException(
-                  'Sponsor referral code is invalid',
-                );
-              }
-
-              if (
-                !canMemberSponsor(
-                  sponsor,
-                )
-              ) {
-                throw new BadRequestException(
-                  'The selected sponsor is not eligible to sponsor a new member',
-                );
-              }
-
-              sponsorId =
-                sponsor.id;
-            }
-
-            const createdMember = await transaction.member.create({
-              data: {
-                membershipId,
-
-                firstName:
-                  dto.firstName.trim(),
-
-                middleName:
-                  dto.middleName?.trim() ||
-                  null,
-
-                lastName:
-                  dto.lastName.trim(),
-
-                email:
-                  dto.email
-                    ?.trim()
-                    .toLowerCase() ||
-                  null,
-
-                phone:
-                  dto.phone.trim(),
-
-                username:
-                  dto.username
-                    .trim()
-                    .toLowerCase(),
-
-                /*
-                 * Only the Argon2id password hash
-                 * is stored.
-                 */
-                passwordHash,
-
-                membershipType:
-                  MembershipType.BASIC,
-
-                status:
-                  MemberStatus
-                    .PENDING_ACTIVATION,
-
-                referralCode,
-
-                activationCodeHash:
-                  hashActivationCode(
-                    activationCode,
-                  ),
-
-                activationExpiresAt,
-
-                sponsorId,
-
-                rootMarker,
+          /*
+           * Later members may optionally provide
+           * a sponsor referral code.
+           *
+           * When it is blank, sponsorId remains
+           * null and member creation continues.
+           */
+          if (existingMember && sponsorReferralCode) {
+            const sponsor = await transaction.member.findUnique({
+              where: {
+                referralCode: sponsorReferralCode,
               },
 
               select: {
                 id: true,
-                membershipId: true,
-
-                firstName: true,
-                middleName: true,
-                lastName: true,
-
-                email: true,
-                phone: true,
-                username: true,
-
-                membershipType: true,
                 status: true,
-
-                referralCode: true,
-                sponsorId: true,
-
-                activationExpiresAt: true,
-
-                createdAt: true,
-                updatedAt: true,
+                rootMarker: true,
               },
             });
 
-            await createMemberOpeningCredit(transaction, createdMember.id);
+            if (!sponsor) {
+              throw new BadRequestException('Sponsor referral code is invalid');
+            }
 
-            return createdMember;
-          },
-          {
-            isolationLevel:
-              Prisma
-                .TransactionIsolationLevel
-                .Serializable,
-          },
-        );
+            if (!canMemberSponsor(sponsor)) {
+              throw new BadRequestException(
+                'The selected sponsor is not eligible to sponsor a new member',
+              );
+            }
 
-      const fullName =
-        buildFullName(member);
+            sponsorId = sponsor.id;
+          }
+
+          const createdMember = await transaction.member.create({
+            data: {
+              membershipId,
+
+              firstName: dto.firstName.trim(),
+
+              middleName: dto.middleName?.trim() || null,
+
+              lastName: dto.lastName.trim(),
+
+              email: dto.email?.trim().toLowerCase() || null,
+
+              phone: dto.phone.trim(),
+
+              username: dto.username.trim().toLowerCase(),
+
+              /*
+               * Only the Argon2id password hash
+               * is stored.
+               */
+              passwordHash,
+
+              membershipType: MembershipType.BASIC,
+
+              status: MemberStatus.PENDING_ACTIVATION,
+
+              referralCode,
+
+              activationCodeHash: hashActivationCode(activationCode),
+
+              activationExpiresAt,
+
+              sponsorId,
+
+              rootMarker,
+            },
+
+            select: {
+              id: true,
+              membershipId: true,
+
+              firstName: true,
+              middleName: true,
+              lastName: true,
+
+              email: true,
+              phone: true,
+              username: true,
+
+              membershipType: true,
+              status: true,
+
+              referralCode: true,
+              sponsorId: true,
+
+              activationExpiresAt: true,
+
+              createdAt: true,
+              updatedAt: true,
+            },
+          });
+
+          await createMemberOpeningCredit(transaction, createdMember.id);
+
+          return createdMember;
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+
+      const fullName = buildFullName(member);
 
       return {
         success: true,
 
-        message:
-          'Member created successfully',
+        message: 'Member created successfully',
 
         member: {
-          id:
-            member.id,
+          id: member.id,
 
-          membershipId:
-            member.membershipId,
+          membershipId: member.membershipId,
 
-          firstName:
-            member.firstName,
+          firstName: member.firstName,
 
-          middleName:
-            member.middleName,
+          middleName: member.middleName,
 
-          lastName:
-            member.lastName,
+          lastName: member.lastName,
 
           fullName,
 
-          username:
-            member.username,
+          username: member.username,
 
-          email:
-            member.email,
+          email: member.email,
 
-          phone:
-            member.phone,
+          phone: member.phone,
 
-          membershipType:
-            mapMembershipType(
-              member.membershipType,
-            ),
+          membershipType: mapMembershipType(member.membershipType),
 
-          status:
-            mapMemberStatus(
-              member.status,
-            ),
+          status: mapMemberStatus(member.status),
 
-          referralCode:
-            member.referralCode,
+          referralCode: member.referralCode,
 
-          referredById:
-            member.sponsorId,
+          referredById: member.sponsorId,
 
           referredBy: null,
 
-          memberSince:
-            member.createdAt.toISOString(),
+          memberSince: member.createdAt.toISOString(),
 
           activatedAt: null,
 
-          createdAt:
-            member.createdAt.toISOString(),
+          createdAt: member.createdAt.toISOString(),
 
-          updatedAt:
-            member.updatedAt.toISOString(),
+          updatedAt: member.updatedAt.toISOString(),
         },
 
         credentials: {
-          membershipId:
-            member.membershipId,
+          membershipId: member.membershipId,
 
-          username:
-            member.username,
+          username: member.username,
 
           activationCode,
 
-          referralCode:
-            member.referralCode,
+          referralCode: member.referralCode,
         },
       };
     } catch (error: unknown) {
-      if (
-        error instanceof HttpException
-      ) {
+      if (error instanceof HttpException) {
         throw error;
       }
 
-      if (
-        error instanceof
-        Prisma
-          .PrismaClientKnownRequestError
-      ) {
-        if (
-          error.code === 'P2002'
-        ) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
           throw new ConflictException(
             'The username, email, membership ID, or generated code already exists',
           );
         }
 
-        if (
-          error.code === 'P2034'
-        ) {
+        if (error.code === 'P2034') {
           throw new ConflictException(
             'Another member was created at the same time. Please try again',
           );
@@ -637,90 +467,68 @@ export class AdminService {
    * Generates a replacement activation code for
    * a member who is still pending activation.
    */
-  async regenerateMemberCredentials(
-    memberId: string,
-  ) {
-    const existingMember =
-      await this.prisma.member.findUnique({
-        where: {
-          id: memberId,
-        },
+  async regenerateMemberCredentials(memberId: string) {
+    const existingMember = await this.prisma.member.findUnique({
+      where: {
+        id: memberId,
+      },
 
-        select: {
-          id: true,
-          membershipId: true,
-          username: true,
-          referralCode: true,
-          status: true,
-        },
-      });
+      select: {
+        id: true,
+        membershipId: true,
+        username: true,
+        referralCode: true,
+        status: true,
+      },
+    });
 
     if (!existingMember) {
-      throw new NotFoundException(
-        'Member not found',
-      );
+      throw new NotFoundException('Member not found');
     }
 
-    if (
-      existingMember.status !==
-      MemberStatus.PENDING_ACTIVATION
-    ) {
+    if (existingMember.status !== MemberStatus.PENDING_ACTIVATION) {
       throw new BadRequestException(
         'A new activation code can only be generated for a member pending activation',
       );
     }
 
-    const activationCode =
-      `LC-ACT-${generateRandomCode(12)}`;
+    const activationCode = `LC-ACT-${generateRandomCode(12)}`;
 
-    const activationExpiresAt =
-      new Date(
-        Date.now() +
-          ACTIVATION_VALID_HOURS *
-            60 *
-            60 *
-            1000,
-      );
+    const activationExpiresAt = new Date(
+      Date.now() + ACTIVATION_VALID_HOURS * 60 * 60 * 1000,
+    );
 
-    const member =
-      await this.prisma.member.update({
-        where: {
-          id: memberId,
-        },
+    const member = await this.prisma.member.update({
+      where: {
+        id: memberId,
+      },
 
-        data: {
-          activationCodeHash:
-            hashActivationCode(
-              activationCode,
-            ),
+      data: {
+        activationCodeHash: hashActivationCode(activationCode),
 
-          activationExpiresAt,
-        },
+        activationExpiresAt,
+      },
 
-        select: {
-          membershipId: true,
-          username: true,
-          referralCode: true,
-        },
-      });
+      select: {
+        membershipId: true,
+        username: true,
+        referralCode: true,
+      },
+    });
 
     return {
       success: true,
 
-      message:
-        'A new activation code was generated successfully',
+      message: 'A new activation code was generated successfully',
 
       credentials: {
-        membershipId:
-          member.membershipId,
+        membershipId: member.membershipId,
 
-        username:
-          member.username,
+        username: member.username,
 
         activationCode,
 
-        referralCode:
-          member.referralCode,
+        referralCode: member.referralCode,
       },
     };
   }

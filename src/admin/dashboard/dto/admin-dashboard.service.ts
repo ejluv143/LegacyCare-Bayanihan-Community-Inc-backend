@@ -1,18 +1,15 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
-import {
-  MemberStatus,
-  MembershipType,
-} from "../../../generated/prisma/client";
+import { MemberStatus, MembershipType } from '../../../generated/prisma/client';
 
-import { PrismaService } from "../../database/prisma/prisma.service";
+import { PrismaService } from '../../database/prisma/prisma.service';
 
 import type {
   AdminDashboardMemberGrowthResponse,
   AdminDashboardOverviewResponse,
   AdminDashboardRecentMembersResponse,
   AdminMemberTotalsResponse,
-} from "./admin-dashboard.types";
+} from './admin-dashboard.types';
 
 /* =========================================================
    SERVICE
@@ -20,16 +17,13 @@ import type {
 
 @Injectable()
 export class AdminDashboardService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /* =======================================================
      MEMBER TOTALS
   ======================================================= */
 
-  async getMemberTotals():
-    Promise<AdminMemberTotalsResponse> {
+  async getMemberTotals(): Promise<AdminMemberTotalsResponse> {
     const [
       registeredMembers,
       basicMembers,
@@ -40,30 +34,25 @@ export class AdminDashboardService {
 
       this.prisma.member.count({
         where: {
-          membershipType:
-            MembershipType.BASIC,
+          membershipType: MembershipType.BASIC,
         },
       }),
 
       this.prisma.member.count({
         where: {
-          membershipType:
-            MembershipType.PREMIUM,
+          membershipType: MembershipType.PREMIUM,
         },
       }),
 
       this.prisma.beneficiary.count(),
     ]);
 
-    const totalMembers =
-      registeredMembers +
-      totalBeneficiaries;
+    const totalMembers = registeredMembers + totalBeneficiaries;
 
     return {
       success: true,
 
-      message:
-        "Member and beneficiary totals retrieved successfully.",
+      message: 'Member and beneficiary totals retrieved successfully.',
 
       data: {
         totalMembers,
@@ -83,8 +72,7 @@ export class AdminDashboardService {
      DASHBOARD OVERVIEW
   ======================================================= */
 
-  async getOverview():
-    Promise<AdminDashboardOverviewResponse> {
+  async getOverview(): Promise<AdminDashboardOverviewResponse> {
     const [
       registeredMembers,
       totalBeneficiaries,
@@ -98,35 +86,29 @@ export class AdminDashboardService {
 
       this.prisma.member.count({
         where: {
-          status:
-            MemberStatus.ACTIVE,
+          status: MemberStatus.ACTIVE,
         },
       }),
 
       this.prisma.member.count({
         where: {
-          status:
-            MemberStatus.PENDING_ACTIVATION,
+          status: MemberStatus.PENDING_ACTIVATION,
         },
       }),
 
       this.prisma.member.count({
         where: {
-          status:
-            MemberStatus.SUSPENDED,
+          status: MemberStatus.SUSPENDED,
         },
       }),
     ]);
 
-    const totalMembers =
-      registeredMembers +
-      totalBeneficiaries;
+    const totalMembers = registeredMembers + totalBeneficiaries;
 
     return {
       success: true,
 
-      message:
-        "Dashboard overview retrieved successfully.",
+      message: 'Dashboard overview retrieved successfully.',
 
       data: {
         totalMembers,
@@ -160,86 +142,69 @@ export class AdminDashboardService {
      RECENT MEMBERS
   ======================================================= */
 
-  async getRecentMembers():
-    Promise<AdminDashboardRecentMembersResponse> {
-    const members =
-      await this.prisma.member.findMany({
-        take: 10,
+  async getRecentMembers(): Promise<AdminDashboardRecentMembersResponse> {
+    const members = await this.prisma.member.findMany({
+      take: 10,
 
-        orderBy: {
-          createdAt: "desc",
-        },
+      orderBy: {
+        createdAt: 'desc',
+      },
 
-        select: {
-          id: true,
+      select: {
+        id: true,
 
-          membershipId: true,
+        membershipId: true,
 
-          firstName: true,
+        firstName: true,
 
-          middleName: true,
+        middleName: true,
 
-          lastName: true,
+        lastName: true,
 
-          username: true,
+        username: true,
 
-          email: true,
+        email: true,
 
-          phone: true,
+        phone: true,
 
-          membershipType: true,
+        membershipType: true,
 
-          status: true,
+        status: true,
 
-          createdAt: true,
-        },
-      });
+        createdAt: true,
+      },
+    });
 
     return {
       success: true,
 
-      message:
-        "Recent members retrieved successfully.",
+      message: 'Recent members retrieved successfully.',
 
-      data: members.map(
-        (member) => ({
-          id:
-            member.id,
+      data: members.map((member) => ({
+        id: member.id,
 
-          membershipId:
-            member.membershipId,
+        membershipId: member.membershipId,
 
-          firstName:
-            member.firstName,
+        firstName: member.firstName,
 
-          middleName:
-            member.middleName,
+        middleName: member.middleName,
 
-          lastName:
-            member.lastName,
+        lastName: member.lastName,
 
-          username:
-            member.username,
+        username: member.username,
 
-          email:
-            member.email,
+        email: member.email,
 
-          phone:
-            member.phone,
+        phone: member.phone,
 
-          membershipType:
-            member.membershipType,
+        membershipType: member.membershipType,
 
-          status:
-            member.status,
+        status: member.status,
 
-          memberSince:
-            member.createdAt,
+        memberSince: member.createdAt,
 
-          createdAt:
-            member.createdAt,
-        }),
-      ),
+        createdAt: member.createdAt,
+      })),
     };
   }
 
@@ -247,13 +212,11 @@ export class AdminDashboardService {
      MEMBER GROWTH
   ======================================================= */
 
-  async getMemberGrowth():
-    Promise<AdminDashboardMemberGrowthResponse> {
+  async getMemberGrowth(): Promise<AdminDashboardMemberGrowthResponse> {
     return {
       success: true,
 
-      message:
-        "Member growth retrieved successfully.",
+      message: 'Member growth retrieved successfully.',
 
       data: [],
     };

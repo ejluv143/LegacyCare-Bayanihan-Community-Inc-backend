@@ -1,29 +1,21 @@
-import { Module } from "@nestjs/common";
+import { Module } from '@nestjs/common';
 
-import { DatabaseModule } from "../../database/database.module";
+import { DatabaseModule } from '../../database/database.module';
 
-import { AdminGenealogyController } from "./admin-genealogy.controller";
-import { AdminGenealogyService } from "./admin-genealogy.service";
+import { AdminGenealogyController } from './admin-genealogy.controller';
+import { AdminGenealogyService } from './admin-genealogy.service';
 
 /* =========================================================
    MODULE
 ========================================================= */
 
 @Module({
-  imports: [
-    DatabaseModule,
-  ],
+  imports: [DatabaseModule],
 
-  controllers: [
-    AdminGenealogyController,
-  ],
+  controllers: [AdminGenealogyController],
 
-  providers: [
-    AdminGenealogyService,
-  ],
+  providers: [AdminGenealogyService],
 
-  exports: [
-    AdminGenealogyService,
-  ],
+  exports: [AdminGenealogyService],
 })
 export class AdminGenealogyModule {}
