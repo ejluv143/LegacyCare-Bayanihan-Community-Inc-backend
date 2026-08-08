@@ -86,14 +86,6 @@ export interface ClaimResponse {
   updatedAt: string;
 }
 
-export interface ClaimListResponse {
-  success: true;
-  message: string;
-  claims: ClaimResponse[];
-}
-
-export interface ClaimDetailResponse {
-  success: true;
-  message: string;
-  claim: ClaimResponse;
-}
+// Controllers return ClaimResponse / ClaimResponse[] directly (no
+// success/message/claim(s) wrapper) — matches every other module in
+// this backend (notifications, announcements, etc.).
