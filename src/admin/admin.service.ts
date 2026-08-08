@@ -81,6 +81,10 @@ function mapMemberStatus(status: MemberStatus): FrontendMemberStatus {
       return 'suspended';
 
     case MemberStatus.DISABLED:
+    case MemberStatus.DECEASED:
+      // The admin members list has no dedicated "deceased" status yet;
+      // surface it as inactive rather than the misleading 'pending'
+      // default so a deceased member never reads as awaiting action.
       return 'inactive';
 
     case MemberStatus.PENDING_ACTIVATION:

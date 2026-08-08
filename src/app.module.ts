@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { AdminModule } from './admin/admin.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -21,6 +22,7 @@ import { WalletModule } from './wallet/wallet.module';
       cache: true,
     }),
     AdminModule,
+    AnnouncementsModule,
     AuthModule,
     BeneficiaryModule,
     MemberDashboardModule,

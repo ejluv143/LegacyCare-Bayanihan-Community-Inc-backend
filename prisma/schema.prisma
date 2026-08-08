@@ -28,6 +28,7 @@ enum MemberStatus {
   ACTIVE
   SUSPENDED
   DISABLED
+  DECEASED
 }
 
 enum MemberEarningType {
@@ -72,6 +73,23 @@ enum NotificationChannel {
   IN_APP
   EMAIL
   PUSH
+}
+
+enum AnnouncementType {
+  GENERAL
+  DEATH
+}
+
+enum AnnouncementPriority {
+  HIGH
+  NORMAL
+  INFO
+}
+
+enum AnnouncementStatus {
+  SCHEDULED
+  PUBLISHED
+  EXPIRED
 }
 
 /**
@@ -204,6 +222,9 @@ model Member {
   earnings           MemberEarning[]
   walletTransactions WalletTransaction[]
 
+  announcementReads     AnnouncementRead[]
+  deceasedAnnouncements Announcement[]     @relation("AnnouncementDeceasedMember")
+
   redeemedGeneratedCodes GeneratedCode[] @relation("GeneratedCodeUsedByMember")
 
   memberSince DateTime? @map("member_since") @db.Date
@@ -289,6 +310,71 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Announcements
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model Announcement {
+  id String @id @default(uuid()) @db.Char(36)
+
+  type        AnnouncementType     @default(GENERAL)
+  title       String               @db.VarChar(191)
+  description String               @db.VarChar(500)
+  content     String               @db.Text
+  priority    AnnouncementPriority @default(NORMAL)
+  status      AnnouncementStatus   @default(PUBLISHED)
+
+  postedBy String? @map("posted_by") @db.VarChar(191)
+
+  // Only set when type = DEATH. Identifies who the mutual-aid assessment is for.
+  deceasedMemberId String? @map("deceased_member_id") @db.Char(36)
+  deceasedMember   Member? @relation("AnnouncementDeceasedMember", fields: [deceasedMemberId], references: [id], onDelete: SetNull)
+
+  // Populated once the admin runs the death assessment. assessmentProcessedAt
+  // being non-null is the guard that prevents charging members twice.
+  assessmentProcessedAt        DateTime? @map("assessment_processed_at") @db.DateTime(3)
+  assessmentProcessedByAdminId String?   @map("assessment_processed_by_admin_id") @db.VarChar(191)
+  assessmentMemberCount        Int?      @map("assessment_member_count")
+  assessmentTotalAmount        Decimal?  @map("assessment_total_amount") @db.Decimal(14, 2)
+
+  createdByAdminId String? @map("created_by_admin_id") @db.VarChar(191)
+
+  publishAt DateTime  @default(now()) @map("publish_at") @db.DateTime(3)
+  expiresAt DateTime? @map("expires_at") @db.DateTime(3)
+
+  reads AnnouncementRead[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([status, publishAt])
+  @@index([type])
+  @@index([deceasedMemberId])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  id String @id @default(uuid()) @db.Char(36)
+
+  announcementId String       @map("announcement_id") @db.Char(36)
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  memberId String @map("member_id") @db.Char(36)
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  readAt DateTime @default(now()) @map("read_at") @db.DateTime(3)
+
+  @@unique([announcementId, memberId])
+  @@index([memberId])
+  @@map("announcement_reads")
 }
 
 /**
