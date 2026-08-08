@@ -162,7 +162,9 @@ export class AnnouncementsService {
      SATELLITE-FACING
   ========================================================= */
 
-  async getPublicAnnouncements(): Promise<AnnouncementListResponse> {
+  async getPublicAnnouncements(
+    satelliteAccountId: string,
+  ): Promise<AnnouncementListResponse> {
     const now = new Date();
     const where = this.visibleAnnouncementWhere(now);
 
@@ -175,15 +177,99 @@ export class AnnouncementsService {
           deceasedMember: {
             select: { firstName: true, middleName: true, lastName: true },
           },
+          satelliteReads: {
+            where: { satelliteAccountId },
+            select: { id: true },
+          },
         },
       }),
       this.prisma.announcement.count({ where }),
     ]);
 
     return {
-      announcements: rows.map((row) => this.toSatelliteResponse(row, now)),
+      announcements: rows.map((row) =>
+        this.toSatelliteResponse(row, now, row.satelliteReads.length > 0),
+      ),
       total,
     };
+  }
+
+  async markSatelliteAnnouncementAsRead(
+    satelliteAccountId: string,
+    announcementId: string,
+  ): Promise<AnnouncementResponse> {
+    const now = new Date();
+
+    const announcement = await this.prisma.announcement.findFirst({
+      where: { id: announcementId, ...this.visibleAnnouncementWhere(now) },
+      include: {
+        deceasedMember: {
+          select: { firstName: true, middleName: true, lastName: true },
+        },
+      },
+    });
+
+    if (!announcement) {
+      throw new NotFoundException('Announcement not found.');
+    }
+
+    await this.prisma.satelliteAnnouncementRead.upsert({
+      where: {
+        announcementId_satelliteAccountId: {
+          announcementId,
+          satelliteAccountId,
+        },
+      },
+      create: { announcementId, satelliteAccountId },
+      update: {},
+    });
+
+    return this.toSatelliteResponse(announcement, now, true);
+  }
+
+  // Mirrors AnnouncementsService.markAllAsRead but for satellite accounts.
+  async markAllSatelliteAnnouncementsAsRead(
+    satelliteAccountId: string,
+  ): Promise<{ count: number }> {
+    const now = new Date();
+
+    const visible = await this.prisma.announcement.findMany({
+      where: this.visibleAnnouncementWhere(now),
+      select: { id: true },
+    });
+
+    if (visible.length === 0) {
+      return { count: 0 };
+    }
+
+    const alreadyRead = await this.prisma.satelliteAnnouncementRead.findMany({
+      where: {
+        satelliteAccountId,
+        announcementId: { in: visible.map((announcement) => announcement.id) },
+      },
+      select: { announcementId: true },
+    });
+
+    const alreadyReadIds = new Set(
+      alreadyRead.map((entry) => entry.announcementId),
+    );
+
+    const unreadIds = visible
+      .map((announcement) => announcement.id)
+      .filter((id) => !alreadyReadIds.has(id));
+
+    if (unreadIds.length === 0) {
+      return { count: 0 };
+    }
+
+    const result = await this.prisma.satelliteAnnouncementRead.createMany({
+      data: unreadIds.map((announcementId) => ({
+        announcementId,
+        satelliteAccountId,
+      })),
+    });
+
+    return { count: result.count };
   }
 
   /* =========================================================
@@ -532,8 +618,9 @@ export class AnnouncementsService {
       } | null;
     },
     now: Date,
+    isRead: boolean,
   ): AnnouncementResponse {
-    const response = this.toResponse(announcement, now, false);
+    const response = this.toResponse(announcement, now, isRead);
 
     if (announcement.type !== AnnouncementType.DEATH) {
       return response;

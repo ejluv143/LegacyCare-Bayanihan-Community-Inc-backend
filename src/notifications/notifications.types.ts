@@ -33,18 +33,21 @@ export interface MemberNotificationListResponse {
 }
 
 // Satellite offices only ever see announcement broadcasts today (no
-// per-account notification records exist), so this is a lighter shape
-// than the member NotificationResponse — no userId/channel/isRead.
+// standalone notification records exist) — read state is backed by
+// SatelliteAnnouncementRead, one row per satellite account per
+// announcement.
 export interface SatelliteNotificationResponse {
   id: string;
   type: 'announcement';
   title: string;
   content: string;
   priority: string;
+  isRead: boolean;
   createdAt: string;
 }
 
 export interface SatelliteNotificationListResponse {
   notifications: SatelliteNotificationResponse[];
   total: number;
+  unreadCount: number;
 }

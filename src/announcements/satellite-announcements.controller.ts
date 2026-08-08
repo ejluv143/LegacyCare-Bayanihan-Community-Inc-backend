@@ -2,6 +2,9 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -12,14 +15,19 @@ import { AnnouncementsService } from './announcements.service';
 
 interface AuthenticatedSatelliteRequest extends Request {
   user?: {
+    sub?: string;
     accountType?: string;
   };
 }
 
-function assertSatelliteAccount(request: AuthenticatedSatelliteRequest): void {
-  if (request.user?.accountType !== 'satellite') {
+const announcementIdPipe = new ParseUUIDPipe({ version: '4' });
+
+function getSatelliteAccountId(request: AuthenticatedSatelliteRequest): string {
+  if (request.user?.accountType !== 'satellite' || !request.user.sub) {
     throw new ForbiddenException('A satellite account is required.');
   }
+
+  return request.user.sub;
 }
 
 @Controller('satellite/announcements')
@@ -29,8 +37,19 @@ export class SatelliteAnnouncementsController {
 
   @Get()
   getAnnouncements(@Req() request: AuthenticatedSatelliteRequest) {
-    assertSatelliteAccount(request);
+    return this.announcementsService.getPublicAnnouncements(
+      getSatelliteAccountId(request),
+    );
+  }
 
-    return this.announcementsService.getPublicAnnouncements();
+  @Patch(':announcementId/read')
+  markAsRead(
+    @Req() request: AuthenticatedSatelliteRequest,
+    @Param('announcementId', announcementIdPipe) announcementId: string,
+  ) {
+    return this.announcementsService.markSatelliteAnnouncementAsRead(
+      getSatelliteAccountId(request),
+      announcementId,
+    );
   }
 }

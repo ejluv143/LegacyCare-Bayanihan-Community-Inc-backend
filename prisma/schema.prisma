@@ -399,7 +399,8 @@ model Announcement {
   publishAt DateTime  @default(now()) @map("publish_at") @db.DateTime(3)
   expiresAt DateTime? @map("expires_at") @db.DateTime(3)
 
-  reads AnnouncementRead[]
+  reads          AnnouncementRead[]
+  satelliteReads SatelliteAnnouncementRead[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
@@ -424,6 +425,22 @@ model AnnouncementRead {
   @@unique([announcementId, memberId])
   @@index([memberId])
   @@map("announcement_reads")
+}
+
+model SatelliteAnnouncementRead {
+  id String @id @default(uuid()) @db.Char(36)
+
+  announcementId String       @map("announcement_id") @db.Char(36)
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  satelliteAccountId String           @map("satellite_account_id") @db.Char(36)
+  satelliteAccount   SatelliteAccount @relation(fields: [satelliteAccountId], references: [id], onDelete: Cascade)
+
+  readAt DateTime @default(now()) @map("read_at") @db.DateTime(3)
+
+  @@unique([announcementId, satelliteAccountId])
+  @@index([satelliteAccountId])
+  @@map("satellite_announcement_reads")
 }
 
 /**
@@ -837,6 +854,8 @@ model SatelliteAccount {
 
   lastLoginAt       DateTime? @map("last_login_at") @db.DateTime(3)
   passwordChangedAt DateTime? @map("password_changed_at") @db.DateTime(3)
+
+  announcementReads SatelliteAnnouncementRead[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
