@@ -502,6 +502,17 @@ export class ClaimsService {
       );
     }
 
+    if (
+      dto.decision !== SatelliteClaimDecision.FORWARD_TO_ADMIN &&
+      !dto.remarks.trim()
+    ) {
+      throw new BadRequestException(
+        dto.decision === SatelliteClaimDecision.REQUEST_CORRECTION
+          ? 'Enter correction instructions for the member.'
+          : 'Enter the reason for rejecting this claim.',
+      );
+    }
+
     await this.prisma.$transaction(async (transaction) => {
       for (const documentUpdate of dto.documents ?? []) {
         await transaction.claimDocument.updateMany({

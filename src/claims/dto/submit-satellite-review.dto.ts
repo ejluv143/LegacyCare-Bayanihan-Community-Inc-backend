@@ -6,7 +6,6 @@ import {
   IsString,
   IsUUID,
   MaxLength,
-  MinLength,
   ValidateNested,
 } from 'class-validator';
 
@@ -37,8 +36,15 @@ export class SubmitSatelliteReviewDto {
   })
   decision!: SatelliteClaimDecision;
 
+  /*
+   * Not enforced as non-empty here -- remarks are optional when
+   * forwarding a fully-verified claim (nothing to explain), but
+   * required when requesting a correction or rejecting. That
+   * decision-dependent rule is enforced in
+   * ClaimsService.submitSatelliteReview instead, alongside the
+   * similar required-document-verification rule.
+   */
   @IsString()
-  @MinLength(1, { message: 'remarks is required' })
   @MaxLength(2000)
   remarks!: string;
 
