@@ -1,5 +1,7 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 
+import { AdminRoleGuard } from '../../../auth/guards/admin-role.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { AdminGenealogyService } from './admin-genealogy.service';
 
 /* =========================================================
@@ -7,6 +9,7 @@ import { AdminGenealogyService } from './admin-genealogy.service';
 ========================================================= */
 
 @Controller('admin/genealogy')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
 export class AdminGenealogyController {
   constructor(private readonly adminGenealogyService: AdminGenealogyService) {}
 
