@@ -171,12 +171,17 @@ export class AnnouncementsService {
         where,
         orderBy: [{ publishAt: 'desc' }, { id: 'desc' }],
         take: MAX_ANNOUNCEMENTS_PER_PAGE,
+        include: {
+          deceasedMember: {
+            select: { firstName: true, middleName: true, lastName: true },
+          },
+        },
       }),
       this.prisma.announcement.count({ where }),
     ]);
 
     return {
-      announcements: rows.map((row) => this.toResponse(row, now, false)),
+      announcements: rows.map((row) => this.toSatelliteResponse(row, now)),
       total,
     };
   }
@@ -509,6 +514,47 @@ export class AnnouncementsService {
       isRead,
       createdAt: announcement.createdAt.toISOString(),
       updatedAt: announcement.updatedAt.toISOString(),
+    };
+  }
+
+  // Satellite offices see every published announcement, but a death
+  // announcement's description/content is written for members — it may
+  // explain the mutual aid wallet contribution that only applies to member
+  // accounts. Satellites have no wallets and aren't charged anything, so
+  // they get a neutral "a member has passed away" notice instead, never
+  // the assessment/financial wording.
+  private toSatelliteResponse(
+    announcement: Announcement & {
+      deceasedMember: {
+        firstName: string;
+        middleName: string | null;
+        lastName: string;
+      } | null;
+    },
+    now: Date,
+  ): AnnouncementResponse {
+    const response = this.toResponse(announcement, now, false);
+
+    if (announcement.type !== AnnouncementType.DEATH) {
+      return response;
+    }
+
+    const deceasedName = announcement.deceasedMember
+      ? buildFullName(
+          announcement.deceasedMember.firstName,
+          announcement.deceasedMember.middleName,
+          announcement.deceasedMember.lastName,
+        )
+      : null;
+
+    const notice = deceasedName
+      ? `We are saddened to share that ${deceasedName}, a member of the Legacy Care Bayanihan Community, has passed away. Our condolences to the family.`
+      : 'We are saddened to share that a member of the Legacy Care Bayanihan Community has passed away. Our condolences to the family.';
+
+    return {
+      ...response,
+      description: notice,
+      content: notice,
     };
   }
 }
