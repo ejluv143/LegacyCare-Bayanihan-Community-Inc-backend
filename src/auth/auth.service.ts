@@ -125,6 +125,8 @@ export class AuthService {
 
       sponsorReferralCode: dto.referralCode,
 
+      satelliteId: dto.satelliteId,
+
       username: dto.username,
 
       password: dto.password,

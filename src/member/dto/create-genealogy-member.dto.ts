@@ -8,6 +8,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   MinLength,
@@ -111,4 +112,15 @@ export class CreateGenealogyMemberDto {
   @Transform(({ value }) => uppercaseTrimValue(value))
   @IsIn(['LEFT', 'RIGHT'])
   placement?: 'LEFT' | 'RIGHT';
+
+  /**
+   * Optional. When omitted, the servicing satellite is derived from
+   * the activation code's assignment, falling back to a match against
+   * the submitted address. See MembersService.resolveSatelliteId.
+   */
+  @IsOptional()
+  @IsUUID(undefined, {
+    message: 'Satellite ID must be a valid identifier.',
+  })
+  satelliteId?: string;
 }

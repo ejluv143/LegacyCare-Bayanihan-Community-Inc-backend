@@ -880,6 +880,7 @@ export class MemberDashboardService {
        * sponsor's referral code.
        */
       sponsorReferralCode: sponsor.referralCode,
+      satelliteId: dto.satelliteId,
       password: dto.password,
       confirmPassword: dto.confirmPassword ?? dto.password,
     });

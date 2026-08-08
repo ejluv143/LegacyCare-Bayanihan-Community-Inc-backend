@@ -11,9 +11,12 @@ import {
   Post,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 
+import { AdminRoleGuard } from '../../auth/guards/admin-role.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   AdminSatellitesService,
   type AdminIdentity,
@@ -57,6 +60,7 @@ function getAdminIdentity(request: AuthenticatedAdminRequest): AdminIdentity {
 }
 
 @Controller('admin/satellites')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
 export class AdminSatellitesController {
   constructor(
     private readonly adminSatellitesService: AdminSatellitesService,

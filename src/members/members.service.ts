@@ -16,6 +16,7 @@ import {
   MemberStatus,
   MembershipType,
   Prisma,
+  SatelliteStatus,
 } from '../generated/prisma/client';
 
 import { PrismaService } from '../admin/database/prisma/prisma.service';
@@ -45,6 +46,15 @@ export interface CreateMemberInput {
   activationCode: string;
   sponsorReferralCode: string;
 
+  /**
+   * Optional explicit servicing satellite (e.g. chosen from the public
+   * registration dropdown, or auto-supplied when a satellite portal
+   * session registers a member). When omitted, the activation code's
+   * assigned satellite is used, falling back to an address match.
+   * See MembersService.resolveSatelliteId.
+   */
+  satelliteId?: string;
+
   username: string;
   password: string;
   confirmPassword: string;
@@ -65,6 +75,8 @@ interface NormalizedCreateMemberInput {
 
   activationCode: string;
   sponsorReferralCode: string;
+
+  satelliteId?: string;
 
   username: string;
   password: string;
@@ -226,9 +238,18 @@ export class MembersService {
           );
         }
 
+        const resolvedSatelliteId = await this.resolveSatelliteId(
+          transaction,
+          normalized.satelliteId,
+          generatedCode.assignedSatelliteId,
+          normalized.address,
+        );
+
         const createdMember = await transaction.member.create({
           data: {
             membershipId,
+
+            satelliteId: resolvedSatelliteId,
 
             firstName: normalized.firstName,
 
@@ -284,6 +305,8 @@ export class MembersService {
             referralCode: true,
 
             sponsorId: true,
+
+            satelliteId: true,
 
             activationExpiresAt: true,
 
@@ -361,6 +384,8 @@ export class MembersService {
         referralCode: member.referralCode,
 
         sponsorId: member.sponsorId,
+
+        satelliteId: member.satelliteId,
 
         sponsorMembershipId: sponsor.membershipId,
 
@@ -450,6 +475,8 @@ export class MembersService {
 
       sponsorReferralCode,
 
+      satelliteId: normalizeOptionalText(input.satelliteId),
+
       username,
 
       password: input.password,
@@ -500,6 +527,127 @@ export class MembersService {
     }
 
     return sponsor;
+  }
+
+  /**
+   * Determines which satellite a newly registered member should be
+   * attributed to. Priority order:
+   *   1. An explicitly supplied satelliteId (public registration
+   *      dropdown, or a satellite portal session registering a member
+   *      on its own behalf) -- only if that satellite actually exists.
+   *   2. The satellite the activation code itself was assigned to by
+   *      an administrator (GeneratedCode.assignedSatelliteId) -- the
+   *      strongest signal, since it reflects a deliberate assignment
+   *      made when the code was distributed.
+   *   3. A best-effort match against the member's free-text address
+   *      compared to each active satellite's barangay/city/province/
+   *      region.
+   *   4. Otherwise, left unassigned (null) -- the same behavior as
+   *      before this feature existed.
+   */
+  private async resolveSatelliteId(
+    transaction: Prisma.TransactionClient,
+    explicitSatelliteId: string | undefined,
+    assignedSatelliteId: string | null,
+    address: string,
+  ): Promise<string | null> {
+    if (explicitSatelliteId) {
+      const satellite = await transaction.satellite.findUnique({
+        where: {
+          id: explicitSatelliteId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+      if (satellite) {
+        return satellite.id;
+      }
+    }
+
+    if (assignedSatelliteId) {
+      return assignedSatelliteId;
+    }
+
+    return this.matchSatelliteByAddress(transaction, address);
+  }
+
+  private async matchSatelliteByAddress(
+    transaction: Prisma.TransactionClient,
+    address: string,
+  ): Promise<string | null> {
+    const normalizedAddress = address.toLowerCase();
+
+    const satellites = await transaction.satellite.findMany({
+      where: {
+        status: SatelliteStatus.ACTIVE,
+      },
+
+      select: {
+        id: true,
+        barangay: true,
+        city: true,
+        province: true,
+        region: true,
+      },
+    });
+
+    let bestMatchId: string | null = null;
+    let bestScore = 0;
+
+    for (const satellite of satellites) {
+      const score = this.scoreAddressMatch(normalizedAddress, satellite);
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatchId = satellite.id;
+      }
+    }
+
+    return bestMatchId;
+  }
+
+  private scoreAddressMatch(
+    normalizedAddress: string,
+    satellite: {
+      barangay: string;
+      city: string;
+      province: string;
+      region: string;
+    },
+  ): number {
+    // Most specific match wins: barangay > city > province > region.
+    if (
+      satellite.barangay &&
+      normalizedAddress.includes(satellite.barangay.toLowerCase())
+    ) {
+      return 4;
+    }
+
+    if (
+      satellite.city &&
+      normalizedAddress.includes(satellite.city.toLowerCase())
+    ) {
+      return 3;
+    }
+
+    if (
+      satellite.province &&
+      normalizedAddress.includes(satellite.province.toLowerCase())
+    ) {
+      return 2;
+    }
+
+    if (
+      satellite.region &&
+      normalizedAddress.includes(satellite.region.toLowerCase())
+    ) {
+      return 1;
+    }
+
+    return 0;
   }
 
   private async ensureUniqueMemberFields(

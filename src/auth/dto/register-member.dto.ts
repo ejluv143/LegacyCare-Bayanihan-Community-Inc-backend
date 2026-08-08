@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   MinLength,
@@ -128,6 +129,18 @@ export class RegisterMemberDto {
     message: 'Referral code may only contain letters, numbers, and hyphens.',
   })
   referralCode!: string;
+
+  /**
+   * Optional. When omitted, the servicing satellite is derived from
+   * the activation code's assignment, falling back to a match against
+   * the submitted address. See MembersService.resolveSatelliteId.
+   */
+  @Transform(({ value }) => optionalTrimValue(value))
+  @IsOptional()
+  @IsUUID(undefined, {
+    message: 'Satellite ID must be a valid identifier.',
+  })
+  satelliteId?: string;
 
   @Transform(({ value }) => lowercaseValue(value))
   @IsString()
