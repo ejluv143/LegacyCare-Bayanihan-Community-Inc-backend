@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BeneficiaryModule } from './beneficiary/beneficiary.module';
+import { ClaimsModule } from './claims/claims.module';
 import { DigitalIdModule } from './digital-id/digital-id.module';
 import { MemberDashboardModule } from './member/member-dashboard.module';
 import { ProfileModule } from './profile/profile.module';
@@ -25,6 +26,7 @@ import { WalletModule } from './wallet/wallet.module';
     AnnouncementsModule,
     AuthModule,
     BeneficiaryModule,
+    ClaimsModule,
     MemberDashboardModule,
     DigitalIdModule,
     ProfileModule,

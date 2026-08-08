@@ -96,6 +96,53 @@ enum AnnouncementStatus {
  * --------------------------------------------------------------------------
  */
 /**
+ * Claims
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+enum ClaimType {
+  NATURAL_DEATH
+  ACCIDENTAL_DEATH
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  SATELLITE_REVIEW
+  NEEDS_CORRECTION
+  FORWARDED_TO_ADMIN
+  ADMIN_REVIEW
+  APPROVED
+  PROCESSING_PAYMENT
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+enum ClaimDocumentType {
+  CLAIM_FORM
+  DEATH_CERTIFICATE
+  BARANGAY_CERTIFICATE
+  VALID_ID
+  MARRIAGE_OR_BIRTH_CERTIFICATE
+  MEMBERSHIP_VERIFICATION
+  MEDICAL_RECORDS
+  AFFIDAVIT_OF_CLAIMANT
+  BANK_ACCOUNT_DETAILS
+  OTHER
+}
+
+enum ClaimDocumentStatus {
+  PENDING
+  VERIFIED
+  INVALID
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
  * Generated Codes
  */
 /**
@@ -224,6 +271,8 @@ model Member {
 
   announcementReads     AnnouncementRead[]
   deceasedAnnouncements Announcement[]     @relation("AnnouncementDeceasedMember")
+
+  claims Claim[]
 
   redeemedGeneratedCodes GeneratedCode[] @relation("GeneratedCodeUsedByMember")
 
@@ -403,12 +452,139 @@ model Beneficiary {
 
   primaryMember Member @relation(fields: [primaryMemberId], references: [id], onDelete: Cascade)
 
+  claims Claim[]
+
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
   @@unique([primaryMemberId, sequence])
   @@index([primaryMemberId])
   @@map("beneficiaries")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Claim
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model Claim {
+  id          String @id @default(uuid()) @db.Char(36)
+  claimNumber String @unique @map("claim_number") @db.VarChar(30)
+
+  type   ClaimType   @default(NATURAL_DEATH)
+  status ClaimStatus @default(SUBMITTED)
+
+  memberId String @map("member_id") @db.Char(36)
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  beneficiaryId String      @map("beneficiary_id") @db.Char(36)
+  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Restrict)
+
+  // The satellite office assigned to review this claim (the member's own
+  // satellite at the time of submission).
+  satelliteId String?    @map("satellite_id") @db.Char(36)
+  satellite   Satellite? @relation(fields: [satelliteId], references: [id], onDelete: SetNull)
+
+  claimantName          String @map("claimant_name") @db.VarChar(191)
+  claimantRelationship  String @map("claimant_relationship") @db.VarChar(100)
+  claimantContactNumber String @map("claimant_contact_number") @db.VarChar(30)
+
+  dateOfDeath   DateTime @map("date_of_death") @db.Date
+  placeOfDeath  String   @map("place_of_death") @db.VarChar(255)
+  causeOfDeath  String   @map("cause_of_death") @db.VarChar(255)
+
+  bankName      String @map("bank_name") @db.VarChar(150)
+  accountName   String @map("account_name") @db.VarChar(191)
+  accountNumber String @map("account_number") @db.VarChar(100)
+
+  remarks String? @db.Text
+
+  // Computed at submission from the membership benefit schedule (claim type
+  // + primary member's tenure as of dateOfDeath). Admin may adjust the final
+  // approvedAmount during review.
+  requestedAmount Decimal  @map("requested_amount") @db.Decimal(12, 2)
+  approvedAmount  Decimal? @map("approved_amount") @db.Decimal(12, 2)
+
+  satelliteReviewedAt        DateTime? @map("satellite_reviewed_at") @db.DateTime(3)
+  satelliteReviewedByAccount String?   @map("satellite_reviewed_by_account") @db.VarChar(191)
+  satelliteRemarks           String?   @map("satellite_remarks") @db.Text
+
+  forwardedToAdminAt DateTime? @map("forwarded_to_admin_at") @db.DateTime(3)
+
+  adminReviewedAt     DateTime? @map("admin_reviewed_at") @db.DateTime(3)
+  adminReviewedByAdmin String?  @map("admin_reviewed_by_admin") @db.VarChar(191)
+  adminRemarks         String?  @map("admin_remarks") @db.Text
+  rejectionReason      String?  @map("rejection_reason") @db.Text
+
+  paidAt          DateTime? @map("paid_at") @db.DateTime(3)
+  payoutReference String?   @map("payout_reference") @db.VarChar(191)
+
+  documents     ClaimDocument[]
+  statusHistory ClaimStatusHistory[]
+
+  submittedAt DateTime @default(now()) @map("submitted_at") @db.DateTime(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([memberId])
+  @@index([beneficiaryId])
+  @@index([satelliteId, status])
+  @@index([status])
+  @@map("claims")
+}
+
+model ClaimDocument {
+  id String @id @default(uuid()) @db.Char(36)
+
+  claimId String @map("claim_id") @db.Char(36)
+  claim   Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  type     ClaimDocumentType
+  required Boolean              @default(true)
+  status   ClaimDocumentStatus  @default(PENDING)
+
+  fileName String @map("file_name") @db.VarChar(255)
+  mimeType String @map("mime_type") @db.VarChar(100)
+  fileData String @map("file_data") @db.LongText
+
+  uploadedAt DateTime @default(now()) @map("uploaded_at") @db.DateTime(3)
+
+  reviewedAt           DateTime? @map("reviewed_at") @db.DateTime(3)
+  reviewedByAccount    String?   @map("reviewed_by_account") @db.VarChar(191)
+  reviewRemarks         String?   @map("review_remarks") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@unique([claimId, type])
+  @@index([claimId])
+  @@map("claim_documents")
+}
+
+model ClaimStatusHistory {
+  id String @id @default(uuid()) @db.Char(36)
+
+  claimId String @map("claim_id") @db.Char(36)
+  claim   Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  status      ClaimStatus
+  title       String      @db.VarChar(191)
+  description String      @db.VarChar(500)
+
+  // Who performed the action: 'member' | 'satellite' | 'admin' | 'system'.
+  actorType String  @map("actor_type") @db.VarChar(20)
+  actorId   String? @map("actor_id") @db.VarChar(191)
+  actorName String? @map("actor_name") @db.VarChar(191)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([claimId])
+  @@map("claim_status_history")
 }
 
 /**
@@ -545,6 +721,7 @@ model Satellite {
   members       Member[]
   assignedCodes GeneratedCode[]          @relation("SatelliteAssignedCodes")
   statusHistory SatelliteStatusHistory[]
+  claims        Claim[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
