@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { AnnouncementsService } from '../announcements/announcements.service';
+import type { AnnouncementResponse } from '../announcements/announcements.types';
 import { PrismaService } from '../admin/database/prisma/prisma.service';
 import type { Notification } from '../generated/prisma/client';
 import type {
@@ -12,9 +14,16 @@ import type {
   NotificationResponse,
 } from './notifications.types';
 
+const ANNOUNCEMENT_ID_PREFIX = 'announcement:';
+
+const MAX_MERGED_NOTIFICATIONS = 50;
+
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly announcementsService: AnnouncementsService,
+  ) {}
 
   async createNotification(
     input: CreateNotificationInput,
@@ -87,22 +96,43 @@ export class NotificationsService {
       ...(options?.unreadOnly ? { isRead: false } : {}),
     };
 
-    const [notifications, total, unreadCount] = await this.prisma.$transaction([
-      this.prisma.notification.findMany({
-        where,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: 50,
-      }),
-      this.prisma.notification.count({ where }),
-      this.prisma.notification.count({ where: { userId, isRead: false } }),
-    ]);
+    const [notifications, total, unreadCount, announcementsResponse] =
+      await Promise.all([
+        this.prisma.notification.findMany({
+          where,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: MAX_MERGED_NOTIFICATIONS,
+        }),
+        this.prisma.notification.count({ where }),
+        this.prisma.notification.count({ where: { userId, isRead: false } }),
+        // Announcements are published broadcasts, not per-user rows, so
+        // they're merged into the notification feed here rather than
+        // stored as Notification records.
+        this.announcementsService.getMemberAnnouncements(userId),
+      ]);
+
+    const announcementItems = announcementsResponse.announcements
+      .filter((announcement) => !options?.unreadOnly || !announcement.isRead)
+      .map((announcement) => this.toAnnouncementResponse(announcement));
+
+    const announcementUnreadCount = announcementsResponse.announcements.filter(
+      (announcement) => !announcement.isRead,
+    ).length;
+
+    const merged = [
+      ...notifications.map((notification) => this.toResponse(notification)),
+      ...announcementItems,
+    ]
+      .sort(
+        (first, second) =>
+          Date.parse(second.createdAt) - Date.parse(first.createdAt),
+      )
+      .slice(0, MAX_MERGED_NOTIFICATIONS);
 
     return {
-      notifications: notifications.map((notification) =>
-        this.toResponse(notification),
-      ),
-      total,
-      unreadCount,
+      notifications: merged,
+      total: total + announcementsResponse.total,
+      unreadCount: unreadCount + announcementUnreadCount,
     };
   }
 
@@ -117,6 +147,19 @@ export class NotificationsService {
     userId: string,
     notificationId: string,
   ): Promise<NotificationResponse> {
+    if (notificationId.startsWith(ANNOUNCEMENT_ID_PREFIX)) {
+      const announcementId = notificationId.slice(
+        ANNOUNCEMENT_ID_PREFIX.length,
+      );
+
+      const announcement = await this.announcementsService.markAsRead(
+        userId,
+        announcementId,
+      );
+
+      return this.toAnnouncementResponse(announcement);
+    }
+
     await this.prisma.notification.updateMany({
       where: { id: notificationId, userId, isRead: false },
       data: { isRead: true },
@@ -126,10 +169,15 @@ export class NotificationsService {
   }
 
   async markAllAsRead(userId: string): Promise<{ count: number }> {
-    return this.prisma.notification.updateMany({
-      where: { userId, isRead: false },
-      data: { isRead: true },
-    });
+    const [realResult, announcementResult] = await Promise.all([
+      this.prisma.notification.updateMany({
+        where: { userId, isRead: false },
+        data: { isRead: true },
+      }),
+      this.announcementsService.markAllAsRead(userId),
+    ]);
+
+    return { count: realResult.count + announcementResult.count };
   }
 
   async deleteNotification(
@@ -175,6 +223,22 @@ export class NotificationsService {
       isRead: notification.isRead,
       createdAt: notification.createdAt.toISOString(),
       updatedAt: notification.updatedAt.toISOString(),
+    };
+  }
+
+  private toAnnouncementResponse(
+    announcement: AnnouncementResponse,
+  ): NotificationResponse {
+    return {
+      id: `${ANNOUNCEMENT_ID_PREFIX}${announcement.id}`,
+      userId: '',
+      type: 'announcement',
+      channel: 'in_app',
+      title: announcement.title,
+      content: announcement.description,
+      isRead: announcement.isRead,
+      createdAt: announcement.postedAt,
+      updatedAt: announcement.updatedAt,
     };
   }
 }

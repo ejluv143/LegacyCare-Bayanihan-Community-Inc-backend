@@ -14,7 +14,10 @@ export interface CreateNotificationInput {
 export interface NotificationResponse {
   id: string;
   userId: string;
-  type: Lowercase<NotificationType>;
+  // 'announcement' items are synthesized from published Announcements at
+  // read time, not stored as Notification rows — see
+  // NotificationsService.getMemberNotifications.
+  type: Lowercase<NotificationType> | 'announcement';
   channel: Lowercase<NotificationChannel>;
   title: string;
   content: string;
@@ -27,4 +30,21 @@ export interface MemberNotificationListResponse {
   notifications: NotificationResponse[];
   total: number;
   unreadCount: number;
+}
+
+// Satellite offices only ever see announcement broadcasts today (no
+// per-account notification records exist), so this is a lighter shape
+// than the member NotificationResponse — no userId/channel/isRead.
+export interface SatelliteNotificationResponse {
+  id: string;
+  type: 'announcement';
+  title: string;
+  content: string;
+  priority: string;
+  createdAt: string;
+}
+
+export interface SatelliteNotificationListResponse {
+  notifications: SatelliteNotificationResponse[];
+  total: number;
 }

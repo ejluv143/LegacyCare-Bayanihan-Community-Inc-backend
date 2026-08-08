@@ -116,6 +116,48 @@ export class AnnouncementsService {
     return this.toResponse(announcement, now, true);
   }
 
+  // Marks every currently-visible announcement this member hasn't read yet
+  // as read. Used when the member notification feed's "mark all read"
+  // action needs to cover announcement-sourced items too.
+  async markAllAsRead(memberId: string): Promise<{ count: number }> {
+    const now = new Date();
+
+    const visible = await this.prisma.announcement.findMany({
+      where: this.visibleAnnouncementWhere(now),
+      select: { id: true },
+    });
+
+    if (visible.length === 0) {
+      return { count: 0 };
+    }
+
+    const alreadyRead = await this.prisma.announcementRead.findMany({
+      where: {
+        memberId,
+        announcementId: { in: visible.map((announcement) => announcement.id) },
+      },
+      select: { announcementId: true },
+    });
+
+    const alreadyReadIds = new Set(
+      alreadyRead.map((entry) => entry.announcementId),
+    );
+
+    const unreadIds = visible
+      .map((announcement) => announcement.id)
+      .filter((id) => !alreadyReadIds.has(id));
+
+    if (unreadIds.length === 0) {
+      return { count: 0 };
+    }
+
+    const result = await this.prisma.announcementRead.createMany({
+      data: unreadIds.map((announcementId) => ({ announcementId, memberId })),
+    });
+
+    return { count: result.count };
+  }
+
   /* =========================================================
      SATELLITE-FACING
   ========================================================= */

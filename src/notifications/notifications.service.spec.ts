@@ -6,6 +6,7 @@ import {
   NotificationType,
 } from '../generated/prisma/enums';
 import type { PrismaService } from '../admin/database/prisma/prisma.service';
+import type { AnnouncementsService } from '../announcements/announcements.service';
 
 jest.mock('../admin/database/prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
@@ -38,7 +39,20 @@ describe('NotificationsService', () => {
     $transaction: jest.fn(),
   };
 
-  const service = new NotificationsService(prisma as unknown as PrismaService);
+  const announcementsService = {
+    getMemberAnnouncements: jest
+      .fn<() => Promise<{ announcements: never[]; total: number }>>()
+      .mockResolvedValue({ announcements: [], total: 0 }),
+    markAsRead: jest.fn(),
+    markAllAsRead: jest
+      .fn<() => Promise<{ count: number }>>()
+      .mockResolvedValue({ count: 0 }),
+  };
+
+  const service = new NotificationsService(
+    prisma as unknown as PrismaService,
+    announcementsService as unknown as AnnouncementsService,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
