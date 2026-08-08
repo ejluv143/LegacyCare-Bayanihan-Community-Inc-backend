@@ -223,6 +223,39 @@ enum SatelliteAccountStatus {
   LOCKED
 }
 
+enum SatelliteTransactionType {
+  CODE_PURCHASE
+  ACTIVATION_CODE
+  TOP_UP_CODE
+  BENEFICIARY_CODE
+  CLAIM_PAYOUT
+  REFUND
+  ADMIN_ADJUSTMENT
+}
+
+enum SatelliteTransactionDirection {
+  CREDIT
+  DEBIT
+}
+
+enum SatelliteTransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum SatelliteTransactionPaymentMethod {
+  GCASH
+  MAYA
+  BANK_TRANSFER
+  CASH
+  WALLET
+  SYSTEM
+}
+
 /**
  * --------------------------------------------------------------------------
  */
@@ -739,6 +772,7 @@ model Satellite {
   assignedCodes GeneratedCode[]          @relation("SatelliteAssignedCodes")
   statusHistory SatelliteStatusHistory[]
   claims        Claim[]
+  transactions  SatelliteTransaction[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
@@ -926,4 +960,69 @@ model SatelliteStatusHistory {
   @@index([newStatus])
   @@index([createdAt])
   @@map("satellite_status_history")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Satellite Transaction
+ *
+ * A satellite office's financial ledger: code purchases, claim
+ * payouts, refunds, and manual admin adjustments. Claim payout
+ * entries are created automatically when an admin marks a claim as
+ * paid (see ClaimsService.markClaimPaid); every other type is
+ * recorded by an admin through the admin transactions endpoint --
+ * there is no in-app payment collection, so a "purchase" here means
+ * an admin recording that a satellite paid off-platform (GCash, bank
+ * transfer, cash) and confirming receipt.
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model SatelliteTransaction {
+  id String @id @default(uuid()) @db.Char(36)
+
+  transactionNumber String @unique @map("transaction_number") @db.VarChar(30)
+
+  satelliteId String    @map("satellite_id") @db.Char(36)
+  satellite   Satellite @relation(fields: [satelliteId], references: [id], onDelete: Cascade)
+
+  type      SatelliteTransactionType
+  direction SatelliteTransactionDirection
+  status    SatelliteTransactionStatus @default(PENDING)
+
+  amount    Decimal @db.Decimal(12, 2)
+  fee       Decimal @default(0.00) @db.Decimal(12, 2)
+  netAmount Decimal @map("net_amount") @db.Decimal(12, 2)
+
+  paymentMethod   SatelliteTransactionPaymentMethod @map("payment_method")
+  referenceNumber String?                           @map("reference_number") @db.VarChar(191)
+
+  description String @db.Text
+
+  // Loosely-typed reference to whatever generated this entry (a claim,
+  // a code batch, etc.) -- not a hard foreign key since it can point
+  // to different entity types depending on `type`.
+  relatedRequestId     String? @map("related_request_id") @db.Char(36)
+  relatedRequestNumber String? @map("related_request_number") @db.VarChar(60)
+
+  relatedMemberId     String? @map("related_member_id") @db.Char(36)
+  relatedMembershipId String? @map("related_membership_id") @db.VarChar(30)
+  relatedMemberName   String? @map("related_member_name") @db.VarChar(300)
+
+  adminRemarks String? @map("admin_remarks") @db.Text
+
+  processedByAdminId   String?   @map("processed_by_admin_id") @db.VarChar(191)
+  processedByAdminName String?   @map("processed_by_admin_name") @db.VarChar(191)
+  processedAt           DateTime? @map("processed_at") @db.DateTime(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([satelliteId, status])
+  @@index([satelliteId, type])
+  @@index([createdAt])
+  @@map("satellite_transactions")
 }

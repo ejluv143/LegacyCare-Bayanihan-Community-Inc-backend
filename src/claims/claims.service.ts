@@ -44,6 +44,7 @@ import {
 import { MarkClaimPaidDto } from './dto/mark-claim-paid.dto';
 import { UploadClaimDocumentDto } from './dto/upload-claim-document.dto';
 import type { ClaimResponse } from './claims.types';
+import { SatelliteTransactionsService } from '../satellite/transactions/satellite-transactions.service';
 
 const MAX_CLAIM_NUMBER_ATTEMPTS = 3;
 
@@ -150,7 +151,10 @@ function mapMembershipType(value: string): 'basic' | 'premium' {
 
 @Injectable()
 export class ClaimsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly satelliteTransactionsService: SatelliteTransactionsService,
+  ) {}
 
   /* =========================================================
      MEMBER-FACING
@@ -768,7 +772,23 @@ export class ClaimsService {
   ): Promise<ClaimResponse> {
     const claim = await this.prisma.claim.findUnique({
       where: { id: claimId },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        claimNumber: true,
+        satelliteId: true,
+        requestedAmount: true,
+        approvedAmount: true,
+        member: {
+          select: {
+            id: true,
+            membershipId: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+          },
+        },
+      },
     });
 
     if (!claim) {
@@ -786,23 +806,48 @@ export class ClaimsService {
       );
     }
 
+    const payoutReference = dto.payoutReference.trim();
+
     await this.prisma.claim.update({
       where: { id: claimId },
       data: {
         status: ClaimStatus.PAID,
         paidAt: new Date(),
-        payoutReference: dto.payoutReference.trim(),
+        payoutReference,
         statusHistory: {
           create: {
             status: ClaimStatus.PAID,
             title: 'Payout released',
-            description: `Paid via reference ${dto.payoutReference.trim()}.`,
+            description: `Paid via reference ${payoutReference}.`,
             actorType: 'admin',
             actorId: adminId,
           },
         },
       },
     });
+
+    // Not every claim has a satellite (e.g. a member with no assigned
+    // satellite); only credit a ledger that actually exists.
+    if (claim.satelliteId) {
+      const payoutAmount = (
+        claim.approvedAmount ?? claim.requestedAmount
+      ).toNumber();
+
+      await this.satelliteTransactionsService.createClaimPayoutTransaction({
+        claimId: claim.id,
+        claimNumber: claim.claimNumber,
+        satelliteId: claim.satelliteId,
+        payoutAmount,
+        payoutReference,
+        memberId: claim.member.id,
+        membershipId: claim.member.membershipId,
+        memberName: buildFullName(
+          claim.member.firstName,
+          claim.member.middleName,
+          claim.member.lastName,
+        ),
+      });
+    }
 
     return this.getAdminClaimById(claimId);
   }
