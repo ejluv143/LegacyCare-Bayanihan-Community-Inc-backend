@@ -19,6 +19,8 @@ import {
 import { createMemberOpeningCredit } from '../wallet/wallet-opening-credit';
 import { CreateMemberDto } from './database/create-member.dto';
 import { PrismaService } from './database/prisma/prisma.service';
+import type { MemberStatusInput } from './database/update-member-status.dto';
+import { UpdateMemberStatusDto } from './database/update-member-status.dto';
 
 const CODE_CHARACTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -98,6 +100,32 @@ function mapMembershipType(
 ): FrontendMembershipType {
   return 'basic';
 }
+
+// The reverse of mapMemberStatus, for the admin-selectable subset only.
+// "inactive" maps to DISABLED rather than DECEASED: DECEASED is only ever
+// set by AnnouncementsService.processDeathAssessment as part of a mutual
+// aid assessment, never through this general status editor.
+function toPrismaMemberStatus(status: MemberStatusInput): MemberStatus {
+  switch (status) {
+    case 'active':
+      return MemberStatus.ACTIVE;
+
+    case 'suspended':
+      return MemberStatus.SUSPENDED;
+
+    case 'inactive':
+      return MemberStatus.DISABLED;
+
+    case 'pending':
+    default:
+      return MemberStatus.PENDING_ACTIVATION;
+  }
+}
+
+const STATUSES_REQUIRING_REASON = new Set<MemberStatusInput>([
+  'suspended',
+  'inactive',
+]);
 
 function canMemberSponsor(member: SponsorEligibilityFields): boolean {
   /*
@@ -534,6 +562,146 @@ export class AdminService {
 
         referralCode: member.referralCode,
       },
+    };
+  }
+
+  /**
+   * Updates a member's account status from the admin members directory.
+   *
+   * PATCH /admin/members/:memberId/status
+   */
+  async updateMemberStatus(memberId: string, dto: UpdateMemberStatusDto) {
+    if (
+      STATUSES_REQUIRING_REASON.has(dto.status) &&
+      (!dto.reason || dto.reason.trim().length < 5)
+    ) {
+      throw new BadRequestException({
+        message: 'A clear reason is required for this status.',
+        errors: {
+          reason: ['The reason must contain at least 5 characters.'],
+        },
+      });
+    }
+
+    const existingMember = await this.prisma.member.findUnique({
+      where: {
+        id: memberId,
+      },
+
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    if (!existingMember) {
+      throw new NotFoundException('Member not found');
+    }
+
+    if (existingMember.status === MemberStatus.DECEASED) {
+      throw new BadRequestException(
+        'This member was marked deceased through a mutual aid assessment and their status cannot be changed here.',
+      );
+    }
+
+    const nextStatus = toPrismaMemberStatus(dto.status);
+
+    if (existingMember.status === nextStatus) {
+      throw new ConflictException(`The member is already ${dto.status}.`);
+    }
+
+    const previousStatus = mapMemberStatus(existingMember.status);
+
+    const member = await this.prisma.member.update({
+      where: {
+        id: memberId,
+      },
+
+      data: {
+        status: nextStatus,
+      },
+
+      select: {
+        id: true,
+        membershipId: true,
+
+        firstName: true,
+        middleName: true,
+        lastName: true,
+
+        username: true,
+        email: true,
+        phone: true,
+
+        membershipType: true,
+        status: true,
+
+        referralCode: true,
+        sponsorId: true,
+
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    const sponsor = member.sponsorId
+      ? await this.prisma.member.findUnique({
+          where: {
+            id: member.sponsorId,
+          },
+
+          select: {
+            firstName: true,
+            middleName: true,
+            lastName: true,
+          },
+        })
+      : null;
+
+    return {
+      success: true,
+
+      message: `Member status updated to ${dto.status}.`,
+
+      member: {
+        id: member.id,
+
+        membershipId: member.membershipId,
+
+        firstName: member.firstName,
+
+        middleName: member.middleName,
+
+        lastName: member.lastName,
+
+        fullName: buildFullName(member),
+
+        username: member.username,
+
+        email: member.email,
+
+        phone: member.phone,
+
+        membershipType: mapMembershipType(member.membershipType),
+
+        status: mapMemberStatus(member.status),
+
+        referralCode: member.referralCode,
+
+        referredById: member.sponsorId,
+
+        referredBy: sponsor ? buildFullName(sponsor) : null,
+
+        memberSince: member.createdAt.toISOString(),
+
+        activatedAt: null,
+
+        createdAt: member.createdAt.toISOString(),
+
+        updatedAt: member.updatedAt.toISOString(),
+      },
+
+      previousStatus,
     };
   }
 }
