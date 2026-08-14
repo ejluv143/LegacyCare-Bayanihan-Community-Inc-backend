@@ -773,6 +773,7 @@ model Satellite {
   statusHistory SatelliteStatusHistory[]
   claims        Claim[]
   transactions  SatelliteTransaction[]
+  chatConversation ChatConversation?
 
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
@@ -1025,4 +1026,81 @@ model SatelliteTransaction {
   @@index([satelliteId, type])
   @@index([createdAt])
   @@map("satellite_transactions")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Chat
+ *
+ * Realtime messaging between a satellite office and Legacy Care admin.
+ * There's exactly one conversation per satellite (there is currently only
+ * one admin identity in the system -- see AuthService.tryTemporaryAdminLogin,
+ * which issues a fixed `sub: 'temporary-admin'` token rather than a row in
+ * a table), so the conversation is keyed by satelliteId instead of needing
+ * a separate participants join table.
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+enum ChatSenderRole {
+  ADMIN
+  SATELLITE
+}
+
+model ChatConversation {
+  id String @id @default(uuid()) @db.Char(36)
+
+  satelliteId String    @unique @map("satellite_id") @db.Char(36)
+  satellite   Satellite @relation(fields: [satelliteId], references: [id], onDelete: Cascade)
+
+  lastMessageAt      DateTime? @map("last_message_at") @db.DateTime(3)
+  lastMessagePreview String?   @map("last_message_preview") @db.VarChar(500)
+
+  // Denormalized counters so the conversation list can be rendered without
+  // a COUNT(*) per row -- kept in sync by ChatService.createMessage / markRead.
+  satelliteUnreadCount Int @default(0) @map("satellite_unread_count") @db.UnsignedInt
+  adminUnreadCount     Int @default(0) @map("admin_unread_count") @db.UnsignedInt
+
+  messages ChatMessage[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([lastMessageAt])
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  id String @id @default(uuid()) @db.Char(36)
+
+  conversationId String           @map("conversation_id") @db.Char(36)
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderRole ChatSenderRole @map("sender_role")
+
+  // 'temporary-admin' for the admin sender, or the SatelliteAccount id for
+  // the satellite sender -- see AuthenticatedUser.sub in jwt.strategy.ts.
+  senderId String @map("sender_id") @db.VarChar(191)
+
+  content String @db.Text
+
+  // Array of { id, type, name, size, url, thumbnailUrl, mimeType }, matching
+  // ChatSocketAttachment on the frontend. Nullable rather than defaulted to
+  // "[]" because MySQL JSON columns can't carry a literal default in Prisma.
+  attachments Json?
+
+  isRead Boolean   @default(false) @map("is_read")
+  readAt DateTime? @map("read_at") @db.DateTime(3)
+
+  edited  Boolean @default(false)
+  deleted Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([conversationId, createdAt])
+  @@map("chat_messages")
 }

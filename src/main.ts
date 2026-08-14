@@ -2,48 +2,19 @@ import 'dotenv/config';
 
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { AppModule } from './app.module';
+import { getAllowedOrigins, normalizeOrigin } from './common/allowed-origins';
 
 type HttpRequestHandler = (
   request: IncomingMessage,
   response: ServerResponse,
 ) => unknown;
 
-const DEFAULT_ALLOWED_ORIGINS = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'https://legacy-care-bayanihan-community-inc-omega.vercel.app',
-];
-
 let serverPromise: Promise<HttpRequestHandler> | null = null;
-
-function normalizeOrigin(origin: string): string {
-  return origin.trim().replace(/\/+$/, '');
-}
-
-function getAllowedOrigins(): string[] {
-  const configuredOrigins = [
-    process.env.FRONTEND_URLS,
-    process.env.FRONTEND_URL,
-  ]
-    .filter(
-      (value): value is string =>
-        typeof value === 'string' && value.trim().length > 0,
-    )
-    .flatMap((value) => value.split(','))
-    .map(normalizeOrigin)
-    .filter(Boolean);
-
-  return Array.from(
-    new Set([
-      ...DEFAULT_ALLOWED_ORIGINS.map(normalizeOrigin),
-      ...configuredOrigins,
-    ]),
-  );
-}
 
 function configureApplication(app: INestApplication): void {
   app.setGlobalPrefix('api');
@@ -106,6 +77,18 @@ function configureApplication(app: INestApplication): void {
       },
     }),
   );
+
+  /*
+   * Registers the Socket.IO adapter the chat gateway
+   * (src/chat/chat.gateway.ts) needs. This only does anything useful
+   * when the app is actually listening on a persistent HTTP server
+   * (bootstrapLocal below) -- Vercel's serverless request handler is
+   * torn down between requests, so it can't hold a WebSocket
+   * connection open no matter what adapter is attached here. Move
+   * this backend to an always-on host before relying on realtime
+   * chat in production.
+   */
+  app.useWebSocketAdapter(new IoAdapter(app));
 }
 
 async function createApplication(): Promise<INestApplication> {

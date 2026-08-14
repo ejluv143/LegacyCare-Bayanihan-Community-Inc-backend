@@ -28,6 +28,8 @@
     "@nestjs/mapped-types": "^2.1.1",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-socket.io": "^11.1.29",
+    "@nestjs/websockets": "^11.1.29",
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/client": "7.9.1",
     "argon2": "^0.45.0",
@@ -40,6 +42,7 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "socket.io": "^4.8.3",
     "validator": "^13.15.35"
   },
   "devDependencies": {

@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BeneficiaryModule } from './beneficiary/beneficiary.module';
 import { CertificateModule } from './certificate/certificate.module';
+import { ChatModule } from './chat/chat.module';
 import { ClaimsModule } from './claims/claims.module';
 import { DigitalIdModule } from './digital-id/digital-id.module';
 import { MemberDashboardModule } from './member/member-dashboard.module';
@@ -29,6 +30,7 @@ import { WalletModule } from './wallet/wallet.module';
     AuthModule,
     BeneficiaryModule,
     CertificateModule,
+    ChatModule,
     ClaimsModule,
     MemberDashboardModule,
     DigitalIdModule,
