@@ -1,0 +1,75 @@
+# Render Blueprint for the Legacy Care backend.
+#
+# This exists because the WebSocket chat gateway (src/chat/chat.gateway.ts)
+# needs a persistent, always-on process to hold connections open -- Vercel's
+# serverless functions are torn down between requests and can't do that.
+# main.ts already supports both: it exports a stateless `handler` for Vercel
+# and calls `app.listen()` here whenever process.env.VERCEL isn't set to '1',
+# which is the case on Render, so no code branches on "which host is this."
+#
+# To deploy: in the Render dashboard, "New +" -> "Blueprint", point it at
+# this repo, and Render reads this file. Every envVar below has
+# `sync: false`, meaning Render will prompt you to type each value in
+# rather than trying to source it from anywhere -- copy them from this
+# repo's `.env` / your Vercel project's environment variables.
+services:
+  - type: web
+    name: legacy-care-backend
+    runtime: node
+    # Render's free plan spins the service down after ~15 min idle and
+    # cold-starts it on the next request -- socket.io's client will
+    # auto-reconnect through that, but every connected chat session drops
+    # while it happens. Fine for trying this out; use at least Starter for
+    # a chat feature people expect to just stay connected.
+    plan: starter
+    region: singapore
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+
+      - key: NODE_ENV
+        value: production
+
+      # Database (Aiven MySQL) -- same values as this repo's .env.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_HOST
+        sync: false
+      - key: DATABASE_PORT
+        sync: false
+      - key: DATABASE_USER
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: DATABASE_NAME
+        sync: false
+
+      # Base64-encoded Aiven CA certificate -- PrismaService reads this
+      # in production instead of a file path (see prisma.service.ts).
+      # `base64 -w0 cert/ca.pem` (or the local cert your DATABASE_SSL_CA_PATH
+      # points at) produces the value to paste in.
+      - key: DATABASE_SSL_CA_BASE64
+        sync: false
+
+      - key: JWT_SECRET
+        sync: false
+
+      # Comma-separated list of frontend origins allowed to call this API
+      # and connect the chat socket -- e.g. your production frontend URL
+      # plus any preview URLs. See src/common/allowed-origins.ts.
+      - key: FRONTEND_URLS
+        sync: false
+
+      # Temporary single-admin login -- see AuthService.tryTemporaryAdminLogin.
+      - key: TEMP_ADMIN_ENABLED
+        sync: false
+      - key: TEMP_ADMIN_USERNAME
+        sync: false
+      - key: TEMP_ADMIN_PASSWORD
+        sync: false
+      - key: TEMP_ADMIN_EMAIL
+        sync: false

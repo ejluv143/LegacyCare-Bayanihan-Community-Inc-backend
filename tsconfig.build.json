@@ -1,4 +1,27 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+  "compilerOptions": {
+    // Declaration emission is pure overhead for a deployed app (nothing
+    // imports types from dist) and it's the most memory-hungry part of
+    // compiling this project: Prisma's newer client generator emits very
+    // large, deeply-generic per-model files (ChatMessage.ts alone is
+    // 1,400+ lines), and type-checking + emitting a .d.ts for each of
+    // those is what pushed the production build over Render's 512MB
+    // Starter-plan build container ("JavaScript heap out of memory").
+    "declaration": false,
+    "sourceMap": false,
+
+    // Without this, tsc's implicit rootDir is the common ancestor of
+    // every compiled file -- which, because prisma.config.ts sits at
+    // the repo root next to src/, is the repo root itself. That nests
+    // the whole app under dist/src/*.js instead of dist/*.js, which
+    // silently breaks `npm run start:prod` (`node dist/main`): the
+    // file it's looking for is actually at dist/src/main.js. This was
+    // never caught before because Vercel's serverless build never
+    // executes dist/ at all -- it bundles straight from src/main.ts's
+    // `handler` export. Render's start command is the first thing to
+    // actually run `node dist/main`.
+    "rootDir": "src"
+  },
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "prisma.config.ts"]
 }
